@@ -31,10 +31,7 @@ jobs:
         with:
           path: |
             vendor
-            node_modules
-            dist
           key: composer--${{ hashFiles('composer.lock') }}
-          fail-on-cache-miss: true
         id: cache
 
       - name: PHPSTAN

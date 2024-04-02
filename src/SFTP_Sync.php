@@ -10,6 +10,12 @@ trait SFTP_Sync
 
     private ?SFTP $sftp;
 
+    private string $host = "";
+    private string $username = "";
+    private string $password = "";
+    private int $port = 22;
+    private string $base_path = "";
+
     /**
      * @throws Exception
      */
@@ -30,10 +36,10 @@ trait SFTP_Sync
     private function init_sftp_client(): SFTP
     {
         // Define your SFTP credentials and the remote file path
-        $sftpHost = get_field('dmz_host', 'option');
-        $sftpUsername = get_field('dmz_user', 'option');
-        $sftpPassword = get_field('dmz_password', 'option');
-        $sftpPort = get_field('dmz_port', 'option') ?: 22;
+        $sftpHost = apply_filters('as_processor/sftp/host', $this->host);
+        $sftpUsername = apply_filters('as_processor/sftp/user', $this->username);
+        $sftpPassword = apply_filters('as_processor/sftp/password', $this->password);
+        $sftpPort = apply_filters('as_processor/sftp/base_path', $this->port);
 
         // Initialize SFTP
         $sftp = new SFTP($sftpHost, $sftpPort);
@@ -82,7 +88,7 @@ trait SFTP_Sync
      */
     public function get_path(string $path): string {
 
-        $remoteFilePath = get_field('dmz_base_path', 'option');
+        $remoteFilePath = apply_filters('as_processor/sftp/base_path', $this->base_path);
 
         // Get all files the TI folder and index them for faster access
         return trailingslashit($remoteFilePath) . ltrim($path, '/');
