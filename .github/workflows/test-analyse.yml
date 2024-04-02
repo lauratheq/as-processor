@@ -1,0 +1,41 @@
+name: Test/Analyse
+
+on:
+  push:
+    branches:
+      - '**'
+    tags-ignore:
+      - '**'
+  pull_request:
+
+jobs:
+  call-install-deps:
+    uses: ./.github/workflows/install-deps.yml
+    secrets: inherit
+
+  test:
+    runs-on: ubuntu-latest
+    needs: call-install-deps
+
+    steps:
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Load Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            vendor
+            node_modules
+            dist
+          key: composer--${{ hashFiles('composer.lock') }}
+          fail-on-cache-miss: true
+        id: cache
+
+      - name: PHPSTAN
+        run: composer run static-analyse

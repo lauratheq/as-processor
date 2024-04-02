@@ -1,0 +1,40 @@
+name: Install Dependencies
+on:
+  workflow_call:
+    inputs:
+      mode:
+        description: 'Either dev or prod. Dev will install dev dependencies, prod will remove dev dependencies.'
+        required: true
+        default: 'dev'
+        type: string
+
+jobs:
+  install-deps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2.1.4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Cache Composer packages
+        id: cache-composer
+        uses: actions/cache@v3
+        with:
+          path: vendor
+          key: composer--${{ hashFiles('composer.lock') }}
+
+      - if: steps.cache-composer.outputs.cache-hit != 'true'
+        name: Validate composer.json and composer.lock
+        run: composer validate --strict
+        shell: bash
+
+      # Install dependencies
+      - if: steps.cache-composer.outputs.cache-hit != 'true'
+        name: Install dependencies
+        run: |
+            composer install --prefer-dist --no-interaction --no-progress
+        shell: bash
