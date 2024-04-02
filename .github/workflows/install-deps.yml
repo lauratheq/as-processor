@@ -1,12 +1,6 @@
 name: Install Dependencies
 on:
   workflow_call:
-    inputs:
-      mode:
-        description: 'Either dev or prod. Dev will install dev dependencies, prod will remove dev dependencies.'
-        required: true
-        default: 'dev'
-        type: string
 
 jobs:
   install-deps:
