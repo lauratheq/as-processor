@@ -94,4 +94,54 @@ trait SFTP_Sync
         return trailingslashit($remoteFilePath) . ltrim($path, '/');
     }
 
+    public function getHost(): string
+    {
+        return $this->host;
+    }
+
+    public function setHost(string $host): void
+    {
+        $this->host = $host;
+    }
+
+    public function getUsername(): string
+    {
+        return $this->username;
+    }
+
+    public function setUsername(string $username): void
+    {
+        $this->username = $username;
+    }
+
+    public function getPassword(): string
+    {
+        return $this->password;
+    }
+
+    public function setPassword(string $password): void
+    {
+        $this->password = $password;
+    }
+
+    public function getPort(): int
+    {
+        return $this->port;
+    }
+
+    public function setPort(int $port): void
+    {
+        $this->port = $port;
+    }
+
+    public function getBasePath(): string
+    {
+        return $this->base_path;
+    }
+
+    public function setBasePath(string $base_path): void
+    {
+        $this->base_path = $base_path;
+    }
+
 }
