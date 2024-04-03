@@ -3,6 +3,7 @@
 namespace juvo\AS_Processor;
 
 use Exception;
+use League\Csv\Reader;
 
 abstract class CSV_Sync extends Sync
 {
@@ -35,23 +36,20 @@ abstract class CSV_Sync extends Sync
 
         $chunkCount = 0;
         $chunkRowCount = 0;
-        $rowCount = 0;
         $chunkData = [];
-        $header = [];
 
-        while (!feof($handle)) {
-            $row = fgetcsv($handle, 0, $this->delimiter);
+        // Read csv from file
+        $reader = Reader::createFromPath($this->get_source_csv_path(), 'r');
+        $reader->setDelimiter($this->delimiter);
 
-            if ($row == [NULL] || $row === FALSE) { continue; }
+        // Maybe add header
+        if ($this->hasHeader) {
+            $reader->setHeaderOffset(0);
+        }
 
-            $chunkData[] = $row;
-
-            // If has header and first row is header save for later
-            if ($this->hasHeader && $rowCount === 0) {
-                $header = $row;
-            }
-
-            $rowCount++;
+        // Split in chunks
+        foreach ($reader->getRecords() as $record) {
+            $chunkData[] = $record;
             $chunkRowCount++;
 
             if ($chunkRowCount === $this->chunkSize) {
@@ -60,11 +58,6 @@ abstract class CSV_Sync extends Sync
                 $chunkCount++;
                 $chunkRowCount = 0;
                 $chunkData = [];
-
-                // If header is set add it to the new chunk
-                if ($header) {
-                    $chunkData[] = $header;
-                }
             }
         }
 
@@ -72,8 +65,6 @@ abstract class CSV_Sync extends Sync
         if (!empty($chunkData)) {
             $this->schedule_csv_chunk($chunkData, $chunkCount);
         }
-
-        fclose($handle);
 
         // Remove chunk file after sync
         unlink($csvFilePath);

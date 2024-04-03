@@ -6,7 +6,8 @@
   "require": {
     "php": ">=8.0.0",
     "phpseclib/phpseclib": "^3.0.37",
-    "woocommerce/action-scheduler": "^3.7"
+    "woocommerce/action-scheduler": "^3.7",
+    "league/csv": "^9.0"
   },
   "support"     : {
     "issues" : "https://github.com/JUVOJustin/wp-secure-actions/issues"
