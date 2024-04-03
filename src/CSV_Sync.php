@@ -1,14 +1,9 @@
 <?php
-/**
- * @license GPL-3.0-or-later
- *
- * Modified by Justin Vogt on 03-April-2024 using {@see https://github.com/BrianHenryIE/strauss}.
- */
 
-namespace Sinnewerk\Dependencies\juvo\AS_Processor;
+namespace juvo\AS_Processor;
 
 use Exception;
-use Sinnewerk\Dependencies\League\Csv\Reader;
+use League\Csv\Reader;
 
 abstract class CSV_Sync extends Sync
 {
