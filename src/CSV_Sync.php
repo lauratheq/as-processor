@@ -1,9 +1,14 @@
 <?php
+/**
+ * @license GPL-3.0-or-later
+ *
+ * Modified by Justin Vogt on 03-April-2024 using {@see https://github.com/BrianHenryIE/strauss}.
+ */
 
-namespace juvo\AS_Processor;
+namespace Sinnewerk\Dependencies\juvo\AS_Processor;
 
 use Exception;
-use League\Csv\Reader;
+use Sinnewerk\Dependencies\League\Csv\Reader;
 
 abstract class CSV_Sync extends Sync
 {
@@ -86,19 +91,9 @@ abstract class CSV_Sync extends Sync
             throw new Exception("Failed to read the chunk data from: $chunkFilePath");
         }
 
-        // If has header remove first row
-        if ($this->hasHeader) {
-            $header = array_shift($chunkData);
-            $header = array_map(function($string) {
-                return preg_replace('/[^a-zA-Z0-9_]/', '', $string);
-            }, $header);
-        } else {
-            $header = null;
-        }
-
-        $formattedDataGenerator = (function() use ($chunkData, $header) {
+        $formattedDataGenerator = (function() use ($chunkData) {
             foreach ($chunkData as $row) {
-                yield array_combine($header, $row);
+                yield $row;
             }
         })();
 
