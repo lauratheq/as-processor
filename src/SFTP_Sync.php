@@ -39,7 +39,7 @@ trait SFTP_Sync
         $sftpHost = apply_filters('as_processor/sftp/host', $this->host);
         $sftpUsername = apply_filters('as_processor/sftp/user', $this->username);
         $sftpPassword = apply_filters('as_processor/sftp/password', $this->password);
-        $sftpPort = apply_filters('as_processor/sftp/base_path', $this->port);
+        $sftpPort = apply_filters('as_processor/sftp/port', $this->port);
 
         // Initialize SFTP
         $sftp = new SFTP($sftpHost, $sftpPort);
