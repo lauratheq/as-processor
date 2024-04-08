@@ -5,7 +5,7 @@ namespace juvo\AS_Processor;
 trait Sync_Data
 {
 
-    protected string $sync_data_name;
+    private string $sync_data_name;
 
     public function __construct()
     {
@@ -30,6 +30,11 @@ trait Sync_Data
         }
 
         return false;
+    }
+
+    public function set_sync_data_name(string $sync_data_name): void
+    {
+        $this->sync_data_name = $sync_data_name;
     }
 
     /**
@@ -69,4 +74,13 @@ trait Sync_Data
         $this->set_sync_data($newData, $expiration);
     }
 
+    /**
+     * Fully deletes the sync data
+     *
+     * @return void
+     */
+    public function delete_sync_data(): void
+    {
+        delete_transient($this->sync_data_name);
+    }
 }

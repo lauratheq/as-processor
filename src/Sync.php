@@ -13,18 +13,24 @@ abstract class Sync implements Syncable
     private string $sync_group_name;
 
     public function __construct() {
+        // Set sync data key to the group name
+        $this->sync_data_name = $this->get_sync_group_name();
+
+        $this->set_hooks();
+    }
+
+    /**
+     * Used to add callbacks to hooks
+     *
+     * @return void
+     */
+    public function set_hooks(): void {
         add_action('action_scheduler_begin_execute', function(int $action_id) {
             $this->maybe_trigger_last_in_group($action_id);
         }, 10, 1);
-
         add_action('action_scheduler_completed_action', [$this, 'maybe_trigger_last_in_group']);
         add_action($this->get_sync_name() . '/process_chunk', [$this, 'process_chunk']);
-
-        // Set sync data key to the group name
-        $this->sync_data_name = $this->get_sync_group_name();
     }
-
-
 
     /**
      * Returns the name of the sync. The name must always be deterministic.

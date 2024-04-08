@@ -3,7 +3,9 @@
 namespace juvo\AS_Processor;
 
 use Exception;
+use League\Csv\InvalidArgument;
 use League\Csv\Reader;
+use League\Csv\UnavailableStream;
 
 abstract class CSV_Sync extends Sync
 {
@@ -12,9 +14,9 @@ abstract class CSV_Sync extends Sync
     protected string $delimiter = ',';
     protected bool $hasHeader = true;
 
-    public function __construct()
+    public function set_hooks(): void
     {
-        parent::__construct();
+        parent::set_hooks();
         add_action($this->get_sync_name(), [$this, 'split_csv_into_chunks']);
     }
 
@@ -24,13 +26,15 @@ abstract class CSV_Sync extends Sync
      * Returns number ob chunks
      *
      * @return void
-     * @throws Exception
+     * @throws \League\Csv\Exception
+     * @throws InvalidArgument
+     * @throws UnavailableStream
      */
     public function split_csv_into_chunks(): void
     {
+
         $csvFilePath = $this->get_source_csv_path();
-        $handle = fopen($csvFilePath, 'rb');
-        if (!$handle) {
+        if (!file_exists($csvFilePath)) {
             throw new Exception("Failed to open the file: $csvFilePath");
         }
 
