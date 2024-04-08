@@ -10,7 +10,7 @@ abstract class Sequential_Sync implements Syncable
     use Sync_Data;
 
     /**
-     * Stores all of the sync tasks in a queue
+     * Stores all the sync tasks in a queue
      *
      * @var SplQueue|mixed
      */
@@ -19,11 +19,13 @@ abstract class Sequential_Sync implements Syncable
     /**
      * Contains the hook name if the current sync being executed
      *
-     * @var null|Sync
+     * @var ?Sync
      */
     protected ?Sync $current_sync;
 
     public function __construct() {
+        $this->sync_data_name = $this->get_sync_name();
+
         $data = $this->get_sync_data();
 
         if (empty($data)) {
@@ -35,6 +37,9 @@ abstract class Sequential_Sync implements Syncable
             // Add listener if current job is finished to execute next job
             add_action($this->current_sync->get_sync_name() . '_complete', [$this, 'next']);
         }
+
+        // Run the callback function once action is triggered to start the process
+        add_action($this->get_sync_name(), [$this, 'callback']);
     }
 
     /**
@@ -42,7 +47,7 @@ abstract class Sequential_Sync implements Syncable
      *
      * @param mixed $task Task to be added, could be a callback or any data type representing a task
      */
-    public function enqueue(Sync $task): void
+    public function enqueue(Syncable $task): void
     {
         $this->queue->enqueue($task);
         $this->update_sync_data(['queue' => $this->queue]);
