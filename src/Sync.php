@@ -24,12 +24,7 @@ abstract class Sync implements Syncable
         $this->sync_data_name = $this->get_sync_group_name();
     }
 
-    /**
-     * Contains the actual logic for the main task that should break the data into chunks.
-     *
-     * @return void
-     */
-    abstract function schedule(): void;
+
 
     /**
      * Returns the name of the sync. The name must always be deterministic.
