@@ -12,7 +12,7 @@ abstract class Sequential_Sync implements Syncable
     /**
      * Stores all the sync tasks in a queue
      *
-     * @var SplQueue|mixed
+     * @var SplQueue
      */
     private SplQueue $queue;
 
