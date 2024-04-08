@@ -5,8 +5,10 @@ namespace juvo\AS_Processor;
 use ActionScheduler_Action;
 use ActionScheduler_Store;
 
-abstract class Sync
+abstract class Sync implements Syncable
 {
+
+    use Sync_Data;
 
     private string $sync_group_name;
 
@@ -17,6 +19,9 @@ abstract class Sync
 
         add_action('action_scheduler_completed_action', [$this, 'maybe_trigger_last_in_group']);
         add_action($this->get_sync_name() . '/process_chunk', [$this, 'process_chunk']);
+
+        // Set sync data key to the group name
+        $this->sync_data_name = $this->get_sync_group_name();
     }
 
     /**
@@ -50,44 +55,11 @@ abstract class Sync
     abstract function process_chunk_data(\Generator $chunkData): void;
 
     /**
-     * Returns the sync data from a transient
-     *
-     * @param string $key
-     * @return mixed
-     */
-    protected function get_sync_data(string $key = ""): mixed
-    {
-        $transient = get_transient($this->sync_group_name);
-        if (empty($key)) {
-            return $transient;
-        }
-
-        if (isset($transient[$key])) {
-            return $transient[$key];
-        }
-
-        return false;
-    }
-
-    /**
-     * Stores data in a transient to be access in other jobs.
-     * This can be used e.g. to build a delta of post ids
-     *
-     * @param $data
-     * @param int $expiration
-     * @return void
-     */
-    protected function set_sync_data($data, int $expiration = HOUR_IN_SECONDS * 6): void
-    {
-        set_transient($this->sync_group_name, $data, $expiration);
-    }
-
-    /**
      * Returns the sync group name
      *
      * @return string
      */
-    protected function get_sync_group_name(): string
+    public function get_sync_group_name(): string
     {
         if (empty($this->sync_group_name)) {
             $this->sync_group_name = $this->get_sync_name() . '_'. time();
