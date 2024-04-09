@@ -42,11 +42,6 @@ abstract class Sequential_Sync implements Syncable
             $this->jobs = $data['jobs'] ?? [];
             $this->current_sync = $data['current_sync'] ?? null;
 
-            if ($this->current_sync) {
-                // Add listener if current job is finished to execute next job
-                add_action($this->current_sync->get_sync_name() . '_complete', [$this, 'next']);
-            }
-
             // Add hook callbacks
             $this->queue_init();
         }
@@ -143,6 +138,9 @@ abstract class Sequential_Sync implements Syncable
     {
         foreach($this->jobs as $job) {
             $job->set_hooks();
+
+            // Registering the "next" function to the "complete" hook is essential to run the next job in the sequence
+            add_action($job->get_sync_name() . '_complete', [$this, 'next']);
         }
     }
 
