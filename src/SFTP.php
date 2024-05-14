@@ -3,9 +3,9 @@
 namespace juvo\AS_Processor;
 
 use Exception;
-use phpseclib3\Net\SFTP;
+use phpseclib3\Net\SFTP as SFTP_Sec;
 
-class SFTP_Sync extends Remotes
+class SFTP extends Remotes
 {
 
     private string $host = "";
@@ -17,10 +17,10 @@ class SFTP_Sync extends Remotes
     /**
      * Returns an SFTP client
      *
-     * @return SFTP
+     * @return SFTP_Sec
      * @throws Exception
      */
-    protected function init_client(): SFTP
+    protected function init_client(): SFTP_Sec
     {
         // Define your SFTP credentials and the remote file path
         $sftpHost = apply_filters('as_processor/sftp/host', $this->host);
@@ -29,7 +29,7 @@ class SFTP_Sync extends Remotes
         $sftpPort = apply_filters('as_processor/sftp/port', $this->port);
 
         // Initialize SFTP
-        $sftp = new SFTP($sftpHost, $sftpPort);
+        $sftp = new SFTP_Sec($sftpHost, $sftpPort);
         if (!$sftp->login($sftpUsername, $sftpPassword)) {
             throw new Exception('SFTP login failed');
         }
