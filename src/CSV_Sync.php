@@ -13,6 +13,7 @@ abstract class CSV_Sync extends Sync
     protected int $chunkSize = 5000;
     protected string $delimiter = ',';
     protected bool $hasHeader = true;
+    protected string $srcEncoding = "";
 
     public function set_hooks(): void
     {
@@ -45,6 +46,11 @@ abstract class CSV_Sync extends Sync
         // Read csv from file
         $reader = Reader::createFromPath($this->get_source_csv_path(), 'r');
         $reader->setDelimiter($this->delimiter);
+
+        // If src encoding is set convert table to utf-8
+        if (!empty($this->srcEncoding)) {
+            $reader->addStreamFilter("convert.iconv.$this->srcEncoding/UTF-8");
+        }
 
         // Maybe add header
         if ($this->hasHeader) {
