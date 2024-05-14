@@ -5,10 +5,8 @@ namespace juvo\AS_Processor;
 use Exception;
 use phpseclib3\Net\SFTP;
 
-trait SFTP_Sync
+class SFTP_Sync extends Remotes
 {
-
-    private ?SFTP $sftp;
 
     private string $host = "";
     private string $username = "";
@@ -17,23 +15,12 @@ trait SFTP_Sync
     private string $base_path = "";
 
     /**
-     * @throws Exception
-     */
-    public function get_sftp_client(): SFTP
-    {
-        if (empty($this->sftp)) {
-            $this->sftp = $this->init_sftp_client();
-        }
-        return $this->sftp;
-    }
-
-    /**
      * Returns an SFTP client
      *
      * @return SFTP
      * @throws Exception
      */
-    private function init_sftp_client(): SFTP
+    protected function init_client(): SFTP
     {
         // Define your SFTP credentials and the remote file path
         $sftpHost = apply_filters('as_processor/sftp/host', $this->host);
@@ -53,28 +40,27 @@ trait SFTP_Sync
     /**
      * Downloads a file from the remote server
      *
-     * @param string $remote_path relative to the base path
+     * @param string $remote_location relative to the base path
      * @param string $local_path if none passed file will be saved to tmp folder
      * @return string
      * @throws Exception
      */
-    public function download_file(string $remote_path, string $local_path = ""): string
+    public function download_file(string $remote_location, string $local_path): string
     {
 
         // If local path is not provided, save to temp directory
         if (empty($local_path)) {
-            $tmp = get_temp_dir();
-            $local_path = $tmp . ltrim(basename($remote_path), '/');
+            $local_path = $this->get_temp_path($remote_location);
         }
 
         // Check if file exists on SFTP
-        if (!$this->get_sftp_client()->file_exists($remote_path)) {
+        if (!$this->get_client()->file_exists($remote_location)) {
             throw new Exception('File not found on SFTP server.');
         }
 
-        $downloaded = $this->get_sftp_client()->get($remote_path, $local_path);
+        $downloaded = $this->get_client()->get($remote_location, $local_path);
         if (!$downloaded) {
-            throw new Exception("Failed to download file: $remote_path");
+            throw new Exception("Failed to download file: $remote_location");
         }
 
         return $local_path;
