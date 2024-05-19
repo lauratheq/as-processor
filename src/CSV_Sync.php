@@ -60,10 +60,6 @@ abstract class CSV_Sync extends Sync
         // Split in chunks
         foreach ($reader->getRecords() as $record) {
 
-            if ($chunkCount >= 2) {
-                continue;
-            }
-
             $chunkData[] = $record;
             $chunkRowCount++;
 
