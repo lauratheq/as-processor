@@ -27,7 +27,7 @@ abstract class CSV_Sync extends Sync
      * Returns number ob chunks
      *
      * @return void
-     * @throws \League\Csv\Exception
+     * @throws \Sinnewerk\Dependencies\League\Csv\Exception
      * @throws InvalidArgument
      * @throws UnavailableStream
      */
@@ -59,6 +59,11 @@ abstract class CSV_Sync extends Sync
 
         // Split in chunks
         foreach ($reader->getRecords() as $record) {
+
+            if ($chunkCount >= 2) {
+                continue;
+            }
+
             $chunkData[] = $record;
             $chunkRowCount++;
 

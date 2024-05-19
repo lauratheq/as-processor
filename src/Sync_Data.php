@@ -7,11 +7,6 @@ trait Sync_Data
 
     private string $sync_data_name;
 
-    public function __construct()
-    {
-        $this->sync_data_name = $this->get_sync_name();
-    }
-
     /**
      * Returns the sync data from a transient
      *

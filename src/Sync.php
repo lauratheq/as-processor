@@ -13,9 +13,6 @@ abstract class Sync implements Syncable
     private string $sync_group_name;
 
     public function __construct() {
-        // Set sync data key to the group name
-        $this->sync_data_name = $this->get_sync_group_name();
-
         $this->set_hooks();
     }
 
@@ -28,6 +25,7 @@ abstract class Sync implements Syncable
         add_action('action_scheduler_begin_execute', function(int $action_id) {
             $this->maybe_trigger_last_in_group($action_id);
         }, 10, 1);
+        add_action( 'action_scheduler_before_execute', [$this, 'track_action_group'], 10, 2 );
         add_action('action_scheduler_completed_action', [$this, 'maybe_trigger_last_in_group']);
         add_action($this->get_sync_name() . '/process_chunk', [$this, 'process_chunk']);
     }
@@ -56,7 +54,7 @@ abstract class Sync implements Syncable
     abstract function process_chunk_data(\Generator $chunkData): void;
 
     /**
-     * Returns the sync group name
+     * Returns the sync group name. If none set it will generate one from the sync name and the current time
      *
      * @return string
      */
@@ -94,6 +92,23 @@ abstract class Sync implements Syncable
     }
 
     /**
+     * Callback for "action_scheduler_before_execute" hook. It gets the current action and (re)sets the group name.
+     * This is needed to have a consistent group name through all executions of a group
+     *
+     * @param int $action_id
+     * @param mixed $context
+     * @return void
+     */
+    public function track_action_group(int $action_id, mixed $context) {
+        $action = $this->action_belongs_to_sync($action_id);
+        if (!$action || empty($action->get_group())) {
+            return;
+        }
+
+        $this->sync_group_name = $action->get_group();
+    }
+
+    /**
      * Schedules an async action to process a chunk of data
      *
      * @param array $data
@@ -128,4 +143,5 @@ abstract class Sync implements Syncable
 
         return $action;
     }
+
 }
