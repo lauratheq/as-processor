@@ -27,7 +27,7 @@ abstract class CSV_Sync extends Sync
      * Returns number ob chunks
      *
      * @return void
-     * @throws League\Csv\Exception
+     * @throws \League\Csv\Exception
      * @throws InvalidArgument
      * @throws UnavailableStream
      */
