@@ -15,7 +15,7 @@ trait Sync_Data
      */
     protected function get_sync_data(string $key = ""): mixed
     {
-        $transient = get_transient($this->sync_data_name);
+        $transient = get_transient($this->get_sync_data_name());
         if (empty($key)) {
             return $transient;
         }
@@ -25,6 +25,23 @@ trait Sync_Data
         }
 
         return false;
+    }
+
+    /**
+     * Returns the currently set sync data name. Defaults to the sync group name.
+     * Since the name can be overwritten with the setter and the group name is retrieved from the "action_scheduler_before_execute"
+     *
+     *
+     * @return string
+     */
+    public function get_sync_data_name(): string
+    {
+        // Set sync data key to the group name by default
+        if (empty($this->sync_data_name)) {
+            $this->sync_data_name = $this->get_sync_group_name();
+            return $this->sync_data_name;
+        }
+        return $this->sync_data_name;
     }
 
     public function set_sync_data_name(string $sync_data_name): void
@@ -42,7 +59,7 @@ trait Sync_Data
      */
     protected function set_sync_data($data, int $expiration = HOUR_IN_SECONDS * 6): void
     {
-        set_transient($this->sync_data_name, $data, $expiration);
+        set_transient($this->get_sync_data_name(), $data, $expiration);
     }
 
     /**
@@ -55,7 +72,7 @@ trait Sync_Data
     protected function update_sync_data(array $updates, int $expiration = HOUR_IN_SECONDS * 6): void
     {
         // Retrieve the current transient data.
-        $currentData = get_transient($this->sync_data_name);
+        $currentData = get_transient($this->get_sync_data_name());
 
         // If there's no existing data, treat it as an empty array.
         if (!is_array($currentData)) {
@@ -76,6 +93,6 @@ trait Sync_Data
      */
     public function delete_sync_data(): void
     {
-        delete_transient($this->sync_data_name);
+        delete_transient($this->get_sync_data_name());
     }
 }
