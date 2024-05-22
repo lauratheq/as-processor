@@ -351,8 +351,11 @@ trait Sync_Data
             return;
         }
 
+        // Delete lock transient
         $transient_key = '_transient_' . $transient_name;
         wp_cache_delete($transient_key, 'options');
+
+        // Delete lock timeout transient
         $transient_timeout_key = '_transient_timeout_' . $transient_name;
         wp_cache_delete($transient_timeout_key, 'options');
     }
