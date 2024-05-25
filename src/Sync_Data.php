@@ -23,10 +23,7 @@ trait Sync_Data
             throw new \Exception('Sync Data is locked');
         }
 
-        // Delete the transient from the object cache
-        $this->clear_caches($this->get_sync_data_name());
-
-        $transient = get_transient($this->get_sync_data_name());
+        $transient = $this->get_transient($this->get_sync_data_name());
         if (empty($transient)) {
             return false;
         }
@@ -51,11 +48,7 @@ trait Sync_Data
      */
     protected function acquire(int $lock_ttl = 5*MINUTE_IN_SECONDS): bool
     {
-
-        // Delete the transient from the object cache
-        $this->clear_caches($this->get_sync_data_name() . '_lock');
-
-        $lock = get_transient( $this->get_sync_data_name() . '_lock' );
+        $lock = $this->get_transient( $this->get_sync_data_name() . '_lock' );
         if ($lock) {
             throw new Exception( 'Lock is already acquired' );
         }
@@ -82,14 +75,11 @@ trait Sync_Data
      */
     protected function is_locked(): bool
     {
-        // Delete the transient from the object cache
-        $this->clear_caches($this->get_sync_data_name() . '_lock');
-
         if ($this->locked_by_current_process) {
             return true;
         }
 
-        return (bool) get_transient( $this->get_sync_data_name() . '_lock' );
+        return (bool) $this->get_transient( $this->get_sync_data_name() . '_lock' );
     }
 
     /**
@@ -144,6 +134,8 @@ trait Sync_Data
      * - Saves the updated data back into the transient storage.
      * - Releases the lock.
      *
+     * If a lock is set a wait of 1 second is set. After 5 failed tries a final error is thrown
+     *
      * @param array $updates Associative array of data to update.
      * @param int $expiration Optional. Expiration time in seconds. Default is 6 hours.
      * @param bool $deepMerge Optional. Flag to control deep merging. Default is true.
@@ -157,25 +149,41 @@ trait Sync_Data
      */
     protected function update_sync_data(array $updates,bool $deepMerge = false, bool $concatArrays = false, int $expiration = HOUR_IN_SECONDS * 6): void
     {
-        // Lock data first
-        $this->acquire();
 
-        // Retrieve the current transient data.
-        $currentData = $this->get_sync_data();
+        $attempts = 0;
 
-        // If there's no existing data, treat it as an empty array.
-        if (!is_array($currentData)) {
-            $currentData = [];
-        }
+        // Update sync data
+        do {
+            try {
+                // Lock data first
+                $this->acquire();
 
-        // Merge the new updates into the current data, respecting the deepMerge and concatArrays flags.
-        $newData = $this->mergeArrays($currentData, $updates, $deepMerge, $concatArrays);
+                // Retrieve the current transient data.
+                $currentData = $this->get_sync_data();
 
-        // Save the updated data back into the transient.
-        $this->set_sync_data($newData, $expiration);
+                // If there's no existing data, treat it as an empty array.
+                if (!is_array($currentData)) {
+                    $currentData = [];
+                }
 
-        // Unlock
-        $this->release();
+                // Merge the new updates into the current data, respecting the deepMerge and concatArrays flags.
+                $newData = $this->mergeArrays($currentData, $updates, $deepMerge, $concatArrays);
+
+                // Save the updated data back into the transient.
+                $this->set_sync_data($newData, $expiration);
+
+                // Unlock
+                $this->release();
+                return;
+            } catch (Exception $e) {
+                $attempts++;
+                sleep(1);
+                continue;
+            }
+        } while($attempts < 5);
+
+        // If this point is reached throw error
+        throw new \Exception("Failed to update sync data after $attempts tries");
     }
 
     /**
@@ -338,26 +346,37 @@ trait Sync_Data
     }
 
     /**
-     * Clears caches for all the transients
+     * Get the most recent transient value
      *
-     * @param string $transient_name
-     * @return void
+     * Due to the nature of transients and how wordpress handels object caching, this wrapper is needed to always get
+     * the most recent value from the cache.
+     *
+     * WordPress caches transients in the options group if no external object cache is used.
+     * These caches are also deleted before querying the new db value.
+     *
+     * When an external object cache is used, the get_transient is avoided completely and a forced wp_cache_get is used.
+     *
+     * @link https://github.com/rhubarbgroup/redis-cache/issues/523
      */
-    private function clear_caches(string $transient_name): void
-    {
+    private function get_transient($key) {
 
-        // Only continue if external cache is not used. External cache should cleanup after itself
-        if (wp_using_ext_object_cache()) {
-            return;
+        if (!wp_using_ext_object_cache()) {
+
+            // Delete transient cache
+            $deletion_key = '_transient_' . $key;
+            wp_cache_delete($deletion_key, 'options');
+
+            // Delete timeout cache
+            $deletion_key = '_transient_timeout_' . $key;
+            wp_cache_delete($deletion_key, 'options');
+
+            // At this point object cache is cleared and can be requested again
+            $data = get_transient($key);
+        } else {
+            $data = wp_cache_get($key, "transient", true);
         }
 
-        // Delete lock transient
-        $transient_key = '_transient_' . $transient_name;
-        wp_cache_delete($transient_key, 'options');
-
-        // Delete lock timeout transient
-        $transient_timeout_key = '_transient_timeout_' . $transient_name;
-        wp_cache_delete($transient_timeout_key, 'options');
+        return $data;
     }
 
     /**
