@@ -12,7 +12,7 @@ abstract class Remotes
     /**
      * Returns client for the remote location
      */
-    protected function get_client()
+    public function get_client()
     {
         if (empty($this->client)) {
             $this->client = $this->init_client();
