@@ -16,6 +16,8 @@ abstract class Sequential_Sync implements Syncable
      */
     private SplQueue $queue;
 
+    private array $jobs;
+
     /**
      * Contains the hook name if the current sync being executed
      *
@@ -25,7 +27,8 @@ abstract class Sequential_Sync implements Syncable
 
     public function __construct() {
         $this->sync_data_name = $this->get_sync_name();
-
+        
+        // Run always on initialisation
         $this->queue_init();
 
         // Run the callback function once action is triggered to start the process
@@ -43,9 +46,10 @@ abstract class Sequential_Sync implements Syncable
      */
     protected function queue_init(): void
     {
-        foreach($this->get_jobs() as $job) {
-            $job->set_hooks();
-
+        // Since get-Jobs returns fresh instances of Sync, the hooks of the respective sync are always added
+        $this->jobs = $this->get_jobs();
+        
+        foreach($this->jobs as $job) {
             // Registering the "next" function to the "complete" hook is essential to run the next job in the sequence
             add_action($job->get_sync_name() . '_complete', [$this, 'next']);
         }
@@ -133,7 +137,7 @@ abstract class Sequential_Sync implements Syncable
             throw new \Exception("Sync already started");
         }
 
-        $jobs = $this->get_jobs();
+        $jobs = $this->jobs;
         if (empty($jobs)) {
             return;
         }
@@ -172,8 +176,12 @@ abstract class Sequential_Sync implements Syncable
     }
 
     /**
-     * @return Sync[]
+     * Retrieves an array of jobs that need to be synced.
+     *
+     * The implementing class should provide the logic for retrieving the jobs.
+     *
+     * @return Sync[] An array of jobs that need to be synced.
      */
-    abstract public function get_jobs(): array;
+    abstract protected function get_jobs(): array;
 
 }
