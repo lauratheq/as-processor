@@ -27,7 +27,7 @@ abstract class Sequential_Sync implements Syncable
 
     public function __construct() {
         $this->sync_data_name = $this->get_sync_name();
-        
+
         // Run always on initialisation
         $this->queue_init();
 
@@ -48,8 +48,12 @@ abstract class Sequential_Sync implements Syncable
     {
         // Since get-Jobs returns fresh instances of Sync, the hooks of the respective sync are always added
         $this->jobs = $this->get_jobs();
-        
+
         foreach($this->jobs as $job) {
+
+            // Overwrite sync data name to share data between jobs
+            $job->set_sync_data_name($this->get_sync_name());
+            
             // Registering the "next" function to the "complete" hook is essential to run the next job in the sequence
             add_action($job->get_sync_name() . '_complete', [$this, 'next']);
         }
@@ -163,8 +167,6 @@ abstract class Sequential_Sync implements Syncable
         if($this->current_sync) {
             return false;
         }
-
-        $task->set_sync_data_name($this->get_sync_name());
 
         $this->queue->enqueue($task);
         $this->update_sync_data([
