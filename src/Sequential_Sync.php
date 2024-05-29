@@ -53,7 +53,7 @@ abstract class Sequential_Sync implements Syncable
 
             // Overwrite sync data name to share data between jobs
             $job->set_sync_data_name($this->get_sync_name());
-            
+
             // Registering the "next" function to the "complete" hook is essential to run the next job in the sequence
             add_action($job->get_sync_name() . '_complete', [$this, 'next']);
         }
