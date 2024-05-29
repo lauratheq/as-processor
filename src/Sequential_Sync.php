@@ -171,7 +171,6 @@ abstract class Sequential_Sync implements Syncable
         $this->queue->enqueue($task);
         $this->update_sync_data([
             'queue' => $this->queue,
-            'jobs' => iterator_to_array($this->queue)
         ]);
 
         return true;
