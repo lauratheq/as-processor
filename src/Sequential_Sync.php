@@ -16,6 +16,8 @@ abstract class Sequential_Sync implements Syncable
      */
     private SplQueue $queue;
 
+    private array $jobs;
+
     /**
      * Contains the hook name if the current sync being executed
      *
@@ -23,28 +25,11 @@ abstract class Sequential_Sync implements Syncable
      */
     private ?Sync $current_sync = null;
 
-    /**
-     * @var Sync[] Contains every job inside the queue as array.
-     */
-    private array $jobs = [];
-
     public function __construct() {
         $this->sync_data_name = $this->get_sync_name();
 
-        $data = $this->get_sync_data();
-
-        if (empty($data)) {
-            $this->queue = new SplQueue();
-        } else {
-
-            // Restore data from run
-            $this->queue = $data['queue'];
-            $this->jobs = $data['jobs'] ?? [];
-            $this->current_sync = $data['current_sync'] ?? null;
-
-            // Add hook callbacks
-            $this->queue_init();
-        }
+        // Run always on initialisation
+        $this->queue_init();
 
         // Run the callback function once action is triggered to start the process
         add_action($this->get_sync_name(), [$this, 'callback']);
@@ -54,47 +39,56 @@ abstract class Sequential_Sync implements Syncable
     }
 
     /**
-     * Adds a task to the queue
+     * Syncs/Jobs that are in a sequence are not instantiated on every page load, which is why their hook callbacks are not registered.
+     * This function goes through all jobs and registers their hooks
      *
-     * @param Sync $task Task to be added, could be a callback or any data type representing a task
-     * @return bool
+     * @return void
      */
-    public function enqueue(Sync $task): bool
+    protected function queue_init(): void
     {
+        // Since get-Jobs returns fresh instances of Sync, the hooks of the respective sync are always added
+        $this->jobs = $this->get_jobs();
 
-        // Only enqueue new jobs if the queue did not start yet
-        if($this->current_sync) {
-            return false;
+        foreach($this->jobs as $job) {
+
+            // Overwrite sync data name to share data between jobs
+            $job->set_sync_data_name($this->get_sync_name());
+
+            // Registering the "next" function to the "complete" hook is essential to run the next job in the sequence
+            add_action($job->get_sync_name() . '_complete', [$this, 'next']);
         }
-
-        $task->set_sync_data_name($this->get_sync_name());
-
-        $this->queue->enqueue($task);
-        $this->update_sync_data([
-            'queue' => $this->queue,
-            'jobs' => iterator_to_array($this->queue)
-        ]);
-
-        return true;
     }
 
     /**
-     * Starts the queue
+     * Retrieves and restores data for the sync process.
+     *
+     * @return void
+     * @throws \Exception
      */
-    public function start(): void
+    private function retrieve_data(): void
     {
-        if($this->current_sync) {
-            throw new \Exception("Sync already started");
-        }
 
-        $this->next();
+        $data = $this->get_sync_data();
+
+        if (empty($data)) {
+            $this->queue = new SplQueue();
+        } else {
+
+            // Restore data from run
+            $this->queue = $data['queue'];
+            $this->current_sync = $data['current_sync'] ?? null;
+        }
     }
 
     /**
      * Runs the next job in the queue
+     * @throws \Exception
      */
     public function next(): void
     {
+
+        // Prepare Data
+        $this->retrieve_data();
 
         // If queue is empty we either never started or we are done
         if ($this->queue->isEmpty()) {
@@ -129,27 +123,66 @@ abstract class Sequential_Sync implements Syncable
     }
 
     /**
-     * Syncs/Jobs that are in a sequence are not instantiated on every page load, which is why their hook callbacks are not registered.
-     * This function goes through all jobs and registers their hooks
+     * Handles the callback for the job enqueue process.
+     * Retrieves the sync data and enqueues each job.
+     * Starts the job processing.
      *
      * @return void
+     * @throws \Exception
      */
-    protected function queue_init(): void
+    public function callback(): void
     {
-        foreach($this->jobs as $job) {
-            $job->set_hooks();
 
-            // Registering the "next" function to the "complete" hook is essential to run the next job in the sequence
-            add_action($job->get_sync_name() . '_complete', [$this, 'next']);
+        // Prepare Data
+        $this->retrieve_data();
+
+        // Check if is already running
+        if($this->current_sync) {
+            throw new \Exception("Sync already started");
         }
+
+        $jobs = $this->jobs;
+        if (empty($jobs)) {
+            return;
+        }
+
+        foreach($jobs as $job) {
+            $this->enqueue($job);
+        }
+
+        $this->next();
     }
 
     /**
-     * This function should be used to add the actual implementation of jobs.
-     * Therefore, you should add all of the syncs to the queue in this function and use it to start the process
+     * Adds a task to the queue
      *
-     * @return void
+     * @param Sync $task Task to be added, could be a callback or any data type representing a task
+     * @return bool
+     * @throws \Exception
      */
-    abstract public function callback(): void;
+    private function enqueue(Sync $task): bool
+    {
+
+        // Only enqueue new jobs if the queue did not start yet
+        if($this->current_sync) {
+            return false;
+        }
+
+        $this->queue->enqueue($task);
+        $this->update_sync_data([
+            'queue' => $this->queue,
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Retrieves an array of jobs that need to be synced.
+     *
+     * The implementing class should provide the logic for retrieving the jobs.
+     *
+     * @return Sync[] An array of jobs that need to be synced.
+     */
+    abstract protected function get_jobs(): array;
 
 }
