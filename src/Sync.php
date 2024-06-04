@@ -28,6 +28,11 @@ abstract class Sync implements Syncable
         add_action( 'action_scheduler_before_execute', [$this, 'track_action_group'], 10, 2 );
         add_action('action_scheduler_completed_action', [$this, 'maybe_trigger_last_in_group']);
         add_action($this->get_sync_name() . '/process_chunk', [$this, 'process_chunk']);
+
+        // If the child, has the callback, we hook it up
+        if (method_exists($this, 'after_sync_complete')) {
+            add_action($this->get_sync_name() . '/complete', [$this, 'after_sync_complete']);
+        }
     }
 
     /**
@@ -87,7 +92,7 @@ abstract class Sync implements Syncable
         ]);
 
         if (count($actions) === 0) {
-            do_action($this->get_sync_name() . '_complete');
+            do_action($this->get_sync_name() . '/complete');
         }
     }
 
