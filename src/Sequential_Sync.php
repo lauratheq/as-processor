@@ -55,7 +55,7 @@ abstract class Sequential_Sync implements Syncable
             $job->set_sync_data_name($this->get_sync_name());
 
             // Registering the "next" function to the "complete" hook is essential to run the next job in the sequence
-            add_action($job->get_sync_name() . '_complete', [$this, 'next']);
+            add_action($job->get_sync_name() . '/complete', [$this, 'next']);
         }
     }
 
@@ -104,7 +104,7 @@ abstract class Sequential_Sync implements Syncable
                 ]);
 
                 // Allow working on data after sync is complete
-                do_action($this->get_sync_name() . '_complete');
+                do_action($this->get_sync_name() . '/complete');
             }
             return;
         }
