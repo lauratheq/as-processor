@@ -1,5 +1,5 @@
 {
-  "name": "juvo/as-processor",
+  "name": "laura/as-processor",
   "description": "Process huge datasets for import or sync with ease.",
   "keywords"    : [ "wordpress", "action scheduler", "scheduler", "data" ],
   "license": "GPL-3.0-or-later",
