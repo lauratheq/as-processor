@@ -19,24 +19,38 @@ trait Sync_Data
      */
     protected function get_sync_data(string $key = ""): mixed
     {
-        if ($this->is_locked() && !$this->locked_by_current_process) {
-            throw new \Exception('Sync Data is locked');
-        }
 
-        $transient = $this->get_transient($this->get_sync_data_name());
-        if (empty($transient)) {
-            return false;
-        }
+        $attempts = 0;
+        do {
+            try {
 
-        if (empty($key)) {
-            return $transient;
-        }
+                if ($this->is_locked() && !$this->locked_by_current_process) {
+                    throw new \Exception('Sync Data is locked');
+                }
 
-        if (isset($transient[$key])) {
-            return $transient[$key];
-        }
+                $transient = $this->get_transient($this->get_sync_data_name());
+                if (empty($transient)) {
+                    return false;
+                }
 
-        return false;
+                if (empty($key)) {
+                    return $transient;
+                }
+
+                if (isset($transient[$key])) {
+                    return $transient[$key];
+                }
+
+                return false;
+            } catch (Exception $e) {
+                $attempts++;
+                sleep(1);
+                continue;
+            }
+        } while($attempts < 5);
+
+        $attempts = $attempts +1; // Adjust counting for final error
+        throw new \Exception("Sync Data is locked. Tried {$attempts} times");
     }
 
     /**
