@@ -396,6 +396,40 @@ trait Sync_Data
     }
 
     /**
+     * Get the most recent transient value
+     *
+     * Due to the nature of transients and how wordpress handels object caching, this wrapper is needed to always get
+     * the most recent value from the cache.
+     *
+     * WordPress caches transients in the options group if no external object cache is used.
+     * These caches are also deleted before querying the new db value.
+     *
+     * When an external object cache is used, the get_transient is avoided completely and a forced wp_cache_get is used.
+     *
+     * @link https://github.com/rhubarbgroup/redis-cache/issues/523
+     */
+    private function get_transient($key) {
+
+        if (!wp_using_ext_object_cache()) {
+
+            // Delete transient cache
+            $deletion_key = '_transient_' . $key;
+            wp_cache_delete($deletion_key, 'options');
+
+            // Delete timeout cache
+            $deletion_key = '_transient_timeout_' . $key;
+            wp_cache_delete($deletion_key, 'options');
+
+            // At this point object cache is cleared and can be requested again
+            $data = get_transient($key);
+        } else {
+            $data = wp_cache_get($key, "transient", true);
+        }
+
+        return $data;
+    }
+
+    /**
      * Fully deletes the sync data
      *
      * @return void
