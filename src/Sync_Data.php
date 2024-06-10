@@ -344,14 +344,17 @@ trait Sync_Data
     private function mergeArrays(array $array1, array $array2, bool $deepMerge = false, bool $concatArrays = false): array
     {
         foreach ($array2 as $key => $value) {
-            if ($deepMerge && is_array($value) && isset($array1[$key]) && is_array($array1[$key])) {
-                // If concatenation is required, concatenate arrays
-                if ($concatArrays) {
-                    $array1[$key] = array_merge($array1[$key], $value);
-                } else {
+            if (is_array($value) && isset($array1[$key]) && is_array($array1[$key])) {
+                // If both arrays have the same key and values are arrays, we need to merge them
+                if ($deepMerge) {
                     $array1[$key] = $this->mergeArrays($array1[$key], $value, $deepMerge, $concatArrays);
+                } elseif ($concatArrays) {
+                    $array1[$key] = $this->concatArraysPreserveKeys($array1[$key], $value);
+                } else {
+                    $array1[$key] = $value;
                 }
             } else {
+                // Otherwise, set the value from the second array
                 $array1[$key] = $value;
             }
         }
@@ -360,37 +363,36 @@ trait Sync_Data
     }
 
     /**
-     * Get the most recent transient value
+     * Concatenate two arrays with keys
      *
-     * Due to the nature of transients and how wordpress handels object caching, this wrapper is needed to always get
-     * the most recent value from the cache.
+     * This method concatenates two arrays with keys while preserving the keys and avoiding duplicates.
+     * If a key is an integer, the corresponding value will be appended to the first array.
+     * If a key is not an integer and exists in both arrays, and both values are arrays, the method will recursively merge them.
+     * If a key is not an integer and exists in both arrays, but either value is not an array, the value from the second array will be set.
      *
-     * WordPress caches transients in the options group if no external object cache is used.
-     * These caches are also deleted before querying the new db value.
-     *
-     * When an external object cache is used, the get_transient is avoided completely and a forced wp_cache_get is used.
-     *
-     * @link https://github.com/rhubarbgroup/redis-cache/issues/523
+     * @param array $array1 The first array to concatenate with
+     * @param array $array2 The second array to concatenate
+     * @return array The concatenated array
      */
-    private function get_transient($key) {
-
-        if (!wp_using_ext_object_cache()) {
-
-            // Delete transient cache
-            $deletion_key = '_transient_' . $key;
-            wp_cache_delete($deletion_key, 'options');
-
-            // Delete timeout cache
-            $deletion_key = '_transient_timeout_' . $key;
-            wp_cache_delete($deletion_key, 'options');
-
-            // At this point object cache is cleared and can be requested again
-            $data = get_transient($key);
-        } else {
-            $data = wp_cache_get($key, "transient", true);
+    private function concatArraysPreserveKeys(array $array1, array $array2): array
+    {
+        foreach ($array2 as $key => $value) {
+            if (is_int($key)) {
+                // Append value to the array, preserving keys and avoiding duplicates
+                if (!in_array($value, $array1, true)) {
+                    $array1[] = $value;
+                }
+            } else {
+                // If the key is not an integer, merge arrays if both values are arrays
+                if (isset($array1[$key]) && is_array($array1[$key]) && is_array($value)) {
+                    $array1[$key] = $this->concatArraysPreserveKeys($array1[$key], $value);
+                } else {
+                    // Otherwise, set the value from the second array
+                    $array1[$key] = $value;
+                }
+            }
         }
-
-        return $data;
+        return $array1;
     }
 
     /**
