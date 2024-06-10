@@ -31,7 +31,7 @@ abstract class CSV_Sync extends Sync
      * @throws \League\Csv\Exception
      * @throws InvalidArgument
      * @throws UnavailableStream
-     * @throws \Zeller_Gmelin\Dependencies\League\Csv\Exception
+     * @throws \League\Csv\Exception
      */
     public function split_csv_into_chunks(): void
     {
@@ -76,8 +76,12 @@ abstract class CSV_Sync extends Sync
      */
     public function process_chunk(array $data): void
     {
+        $chunkFilePath = $data['chunk_file_path'];
+        if (!file_exists($chunkFilePath)) {
+            throw new Exception("File '$chunkFilePath' does not exist");
+        }
 
-        $file = fopen( $data['chunk_file_path'], 'r');
+        $file = fopen($chunkFilePath, 'r');
 
         $formattedDataGenerator = (function() use ($file) {
             while (($line = fgets($file)) !== false) {
@@ -90,7 +94,7 @@ abstract class CSV_Sync extends Sync
         fclose($file);
 
         // Remove chunk file after sync
-        unlink($data['chunk_file_path']);
+        unlink($chunkFilePath);
     }
 
     /**
