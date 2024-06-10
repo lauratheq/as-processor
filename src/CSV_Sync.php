@@ -3,6 +3,7 @@
 namespace juvo\AS_Processor;
 
 use Exception;
+use Iterator;
 use League\Csv\InvalidArgument;
 use League\Csv\Reader;
 use League\Csv\UnavailableStream;
