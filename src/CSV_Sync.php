@@ -11,6 +11,7 @@ use League\Csv\UnavailableStream;
 abstract class CSV_Sync extends Sync
 {
 
+    const SERIALIZED_DELIMITER = "\n--END--\n";
     protected int $chunkSize = 5000;
     protected string $delimiter = ',';
     protected bool $hasHeader = true;
@@ -82,10 +83,38 @@ abstract class CSV_Sync extends Sync
         }
 
         $file = fopen($chunkFilePath, 'r');
+        $buffer = '';
 
-        $formattedDataGenerator = (function() use ($file) {
-            while (($line = fgets($file)) !== false) {
-                yield unserialize(trim($line));
+        /**
+         * Always read some larger portion and check if the end delimiter is present.
+         * If not, we continue reading.
+         */
+        $formattedDataGenerator = (function() use ($file, &$buffer) {
+            $chunkSize = 8192; // Read 8 KB at a time
+            while (!feof($file)) {
+
+                // Read a chunk of data from the file and append it to the buffer
+                $buffer .= fread($file, $chunkSize);
+
+                // Check if the delimiter is present in the buffer
+                while (($pos = strpos($buffer, self::SERIALIZED_DELIMITER)) !== false) {
+
+                    // Extract the complete serialized record up to the delimiter
+                    $record = substr($buffer, 0, $pos);
+
+                    // Remove the processed record from the buffer
+                    $buffer = substr($buffer, $pos + strlen(self::SERIALIZED_DELIMITER));
+
+                    // Deserialize and yield the record if it's not empty
+                    if (!empty(trim($record))) {
+                        yield unserialize(trim($record));
+                    }
+                }
+            }
+
+            // Process any remaining data in the buffer after reading the entire file
+            if (!empty(trim($buffer))) {
+                yield unserialize(trim($buffer));
             }
         })();
 
@@ -124,7 +153,7 @@ abstract class CSV_Sync extends Sync
         // Write data to Chunk file
         $file = fopen($filename, 'w');
         foreach ($chunkData as $record) {
-            fwrite($file, serialize($record) . "\n");
+            fwrite($file, serialize($record) . self::SERIALIZED_DELIMITER);
         }
         fclose($file);
 
