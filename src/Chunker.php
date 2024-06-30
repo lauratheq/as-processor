@@ -9,17 +9,25 @@ trait Chunker
 {
 
     /**
-     * Generates a deterministic chunk file path
+     * Generates a chunk file path
      *
-     * @param int $count
      * @return string
+     * @throws Exception
      */
-    private function get_chunk_path(int $count): string
+    private function get_chunk_path(): string
     {
-        $filename = str_replace('/', '-', "{$this->get_sync_name()}_$count.txt");
-        $tmp = get_temp_dir();
-        $path = strtolower($tmp . $filename);
+        $filename = str_replace('/', '-', "{$this->get_sync_name()}_".time().".txt");
+        $filename = apply_filters('as_processor/chunk/filename', $filename, $this);
 
+        $folder = $tmp = get_temp_dir();
+        $folder = apply_filters('as_processor/chunk/folder', $folder, $this);
+
+        $folder_created = wp_mkdir_p($folder);
+        if (!$folder_created) {
+            throw new Exception('Could not create chunk folder');
+        }
+
+        $path = strtolower($tmp . $filename);
         return apply_filters('as_processor/chunk/path', $path, $this);
     }
 
@@ -27,12 +35,11 @@ trait Chunker
      * Schedules an async action to process a chunk of data. Passed items are serialized and added to a chunk.
      *
      * @param Iterator $chunkData
-     * @param int $chunkCount
      * @return void
      */
-    protected function schedule_chunk(Iterator $chunkData, int $chunkCount): void
+    protected function schedule_chunk(Iterator $chunkData): void
     {
-        $filename = $this->get_chunk_path($chunkCount);
+        $filename = $this->get_chunk_path();
 
         // Write data to Chunk file
         $file = fopen($filename, 'w');
@@ -44,8 +51,7 @@ trait Chunker
         as_enqueue_async_action(
             $this->get_sync_name() . '/process_chunk',
             [
-                'chunk_file_path' => $filename,
-                'chunk_count'     => $chunkCount,
+                'chunk_file_path' => $filename
             ], // Wrap in array to pass as single argument. Needed because of abstract child method enforcement
             $this->get_sync_group_name()
         );
