@@ -57,7 +57,7 @@ abstract class CSV_Sync extends Import
         // Process chunks
         $chunkCount = 0;
         foreach ($reader->chunkBy($this->chunkSize) as $chunk) {
-            $this->schedule_chunk($chunk->getRecords(), $chunkCount);
+            $this->schedule_chunk($chunk->getRecords());
             $chunkCount++;
         }
 
