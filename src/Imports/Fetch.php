@@ -24,11 +24,11 @@ abstract class Fetch extends Import
     protected bool|string|int $next = 0;
 
     /**
-     * Sets the time between requests default = 1/4 sec
+     * Sets the time between requests in microseconds. Default = 1/4 sec
      *
      * @var int $time_between_requests
      */
-    protected int $time_between_requests = 250;
+    protected int $time_between_requests = 250000;
 
     /**
      * The size of the chunks
@@ -63,10 +63,21 @@ abstract class Fetch extends Import
 
         // Check if last request is at least the configured interval ago
         $last_request = $this->get_sync_data('last_request') ?: 0;
-        $now = microtime(true);
-        if ($last_request + ($this->time_between_requests / 1000) < $now) {
-            $sleep_time = (($last_request + ($this->time_between_requests / 1000)) - $now) * 1000000;
-            usleep($sleep_time);
+        $last_request = $last_request + $this->time_between_requests; // Both are in microseconds
+        $now = (int) (microtime(true) * 1000000); // Convert current time to microseconds
+
+        if ($last_request > $now) { // If last request + interval is in the future
+            $sleep_time = $last_request - $now; // Time to sleep in microseconds
+
+            // Check if sleep time is longer than 1 second (1,000,000 microseconds). Workaround required as stated in php docs
+            if ($sleep_time >= 1000000) {
+                $seconds = (int)($sleep_time / 1000000); // Extract seconds
+                $microseconds = $sleep_time % 1000000; // Extract remaining microseconds
+                sleep($seconds); // Sleep for the seconds part
+                usleep($microseconds); // Sleep for the remaining microseconds
+            } else {
+                usleep($sleep_time); // Sleep for durations less than 1 second
+            }
         }
 
         $data = $this->process_fetch();
@@ -100,11 +111,11 @@ abstract class Fetch extends Import
             $this->schedule_chunk($items);
         } else {
 
-            // Get the current Unix timestamp with microseconds
-            $microtime = microtime(true);
+            // Reinitialize now in microseconds
+            $now = (int) (microtime(true) * 1000000);
 
             // Add the milliseconds to the current time
-            $newTime = $microtime + ($this->time_between_requests / 1000);
+            $newTime = $now + $this->time_between_requests;
 
             if ($this->time_between_requests >= 15000) {
                 // Longer request intervals (> 15 sec) are scheduled since they would unnecessarily keep php requests alive
