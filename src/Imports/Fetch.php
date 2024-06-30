@@ -43,7 +43,7 @@ abstract class Fetch extends Import
 
         // register the hooks for the scheduled actions
         // first of the regular scheduler main action
-        add_action( $this->get_sync_name(), [ $this, 'fetch' ] );
+        add_action($this->get_sync_name(), [$this, 'fetch']);
     }
 
     /**
@@ -53,15 +53,17 @@ abstract class Fetch extends Import
      * @return void
      * @throws Exception
      */
-    public function fetch(?int $index = null): void {
+    public function fetch(?int $index = null): void
+    {
 
         // Maybe set current index. Default value can be set with class parameter in child implementation
         if ($index != null) {
             $this->index = $index;
         }
 
-        $last_request = $this->get_sync_data('last_request');
-        if ($last_request + $this->time_between_requests < microtime(true) ) {
+        // Check if last request is at least the configured interval ago
+        $last_request = $this->get_sync_data('last_request') ?: 0;
+        if ($last_request + $this->time_between_requests < microtime(true)) {
             usleep($this->time_between_requests);
         }
 
@@ -92,7 +94,7 @@ abstract class Fetch extends Import
         }
 
         // If this was the last request schedule chunk as well. Else schedule request
-        if ($this->next === false)  {
+        if ($this->next === false) {
             $this->schedule_chunk($items);
         } else {
 
@@ -102,13 +104,23 @@ abstract class Fetch extends Import
             // Add the milliseconds to the current time
             $newTime = $microtime + ($this->time_between_requests / 1000);
 
-            // Schedule next request
-            as_enqueue_async_action($this->get_sync_name(), [
-                'index' => $this->next
-            ], $this->get_sync_group_name() );
+            if ($this->time_between_requests >= 15000) {
+                // Longer request intervals (> 15 sec) are scheduled since they would unnecessarily keep php requests alive
+                as_schedule_single_action($newTime, $this->get_sync_name(), [
+                    'index' => $this->next
+                ], $this->get_sync_group_name());
+            } else {
+                // Queue next request as async because wait interval under 10sec can be handled in one request
+                as_enqueue_async_action($this->get_sync_name(), [
+                    'index' => $this->next
+                ], $this->get_sync_group_name());
+            }
         }
 
-        $this->update_sync_data(['pending_items' => $items]);
+        $this->update_sync_data([
+            'pending_items' => $items,
+            'last_request' => microtime(true),
+        ]);
     }
 
     /**
@@ -121,7 +133,8 @@ abstract class Fetch extends Import
      * @param int $total The total number of pages.
      * @return void
      */
-    protected function set_next_page(int $total): void {
+    protected function set_next_page(int $total): void
+    {
         if ($this->index < $total) {
             $this->next = $this->index + 1;
         } else {
@@ -140,7 +153,8 @@ abstract class Fetch extends Import
      * @param int $per_page The items queried per page
      * @return void
      */
-    protected function set_next_offset(int $total, int $per_page): void {
+    protected function set_next_offset(int $total, int $per_page): void
+    {
         if ($this->index + $per_page < $total) {
             $this->next = $this->index + $per_page;
         } else {
@@ -157,7 +171,8 @@ abstract class Fetch extends Import
      * @param string $next The URL for the next page.
      * @return void
      */
-    protected function set_next_url(string $next): void {
+    protected function set_next_url(string $next): void
+    {
         if (!empty($next)) {
             $this->next = $next;
         } else {
