@@ -3,114 +3,59 @@
 namespace juvo\AS_Processor;
 
 use Exception;
-use Iterator;
-use League\Csv\Reader;
 
-abstract class Fetch extends Sync
+abstract class Fetch extends Import
 {
+
+    /**
+     * The current index. Store either your offset or page number for the API call.
+     *
+     * @var int $current_index
+     */
+    protected int $current_index = 0;
+
+    /**
+     * Sets the current counter. Store either your offset or page number that have already been processed
+     *
+     * @var int counter
+     */
+    protected int $counter;
+
+    /**
+     * Sets the amount of requests
+     *
+     * @var int $requests_per_schedule
+     */
+    protected int $requests_per_schedule = 5;
+
+    /**
+     * Sets the time between requests default = 1 sec
+     *
+     * @var int $time_between_requests
+     */
+    protected int $time_between_requests = 60000;
+
+    /**
+     * The size of the chunks
+     *
+     * @var int $chunk_size
+     */
+    public int $chunk_size;
+
     const SERIALIZED_DELIMITER = "\n--END--\n";
 
-    /**
-     * Returns the name of the sync. The name must always be deterministic.
-     *
-     * @return string
-     */
-    abstract function get_sync_name(): string;
-
-    /**
-     * Gets the filename
-     *
-     * @return string
-     */
-    abstract function get_filename(): string;
-
-    /**
-     * Gets the path where the files will have a cozy little home
-     *
-     * @return  string
-     */
-    public function get_path(): string
+    public function set_hooks(): void
     {
-        return WP_CONTENT_DIR . '/kununu-exports/';
+        parent::set_hooks();
+
+        // register the hooks for the scheduled actions
+        // first of the regular scheduler main action
+        add_action( $this->get_sync_name() . '/schedule_fetches', [ $this, 'schedule_fetches' ] );
+
+        // register the hook for each job, called chunk here
+        add_action( $this->get_sync_name() . '/process_request', [ $this, 'process_request' ] );
     }
 
-    /**
-     * Gets the full path to the file
-     *
-     * @return  string
-     */
-    public function get_filepath(): string
-    {
-        $path = $this->get_path();
-        $filepath = $path . $this->get_filename();
-        return $filepath; 
-    }
-
-    /**
-     * Gets the full path to the chunked file
-     *
-     * @param   int $chunk_count the current chunk count
-     *
-     * @return  string
-     */
-    public function get_filepath_chunked( int $chunk_count ): string
-    {
-        $filename = str_replace('/', '-', "{$this->get_sync_name()}_$chunk_count.txt");
-        $tmp = get_temp_dir();
-        return strtolower($tmp . $filename);
-    }
-
-    /**
-     * Gets the chunk size
-     *
-     * @return int
-     */
-    abstract function get_chunk_size(): int;
-
-    /**
-     * Callback function for the single chunk jobs.
-     * This jobs reads the chunk file line by line and yields each line to the actual process
-     *
-     * @param array $data
-     * @return void
-     * @throws Exception
-     */
-    public function process_chunk(array $data): void
-    {
-        $chunkFilePath = $data['chunk_file_path'];
-        if (!file_exists($chunkFilePath)) {
-            throw new Exception("File '$chunkFilePath' does not exist");
-        }
-
-        $file = fopen($chunkFilePath, 'r');
-        $buffer = '';
-
-        /**
-         * Always read some larger portion and check if the end delimiter is present.
-         * If not, we continue reading.
-         */
-        $formattedDataGenerator = (function() use ($file) {
-            while ( ( $line = stream_get_line($file, 0, "\n")) !== false ) {
-                $line = trim($line);
-                yield $line;
-            }
-        })();
-
-        $this->process_chunk_data($formattedDataGenerator);
-
-        fclose($file);
-
-        // Remove chunk file after sync
-        unlink($chunkFilePath);
-    }
-
-    /**
-     * Handles the actual data processing. Should be implemented in the class lowest in hierarchy
-     *
-     * @param \Generator $chunkData
-     * @return void
-     */
-    abstract function process_chunk_data(\Generator $chunkData): void;
 
     /**
      * Splits the file into chunks and schedules their execution
@@ -170,34 +115,5 @@ abstract class Fetch extends Sync
 
         // Remove file after sync
         //unlink($filename);
-    }
-
-    /**
-     * Saves the data to a file
-     *
-     * @param   array $items the items to store
-     *
-     * @return  void
-     */
-    public function save_to_file( array $items ): void
-    {
-        // check if filename is set
-        if ( empty( $this->get_filename() ) ) {
-            throw new Exception('The property filename is not set');
-        }
-
-        // prep the file
-        $path = WP_CONTENT_DIR . '/kununu-exports/';
-        if ( ! is_dir( $path ) ) {
-            wp_mkdir_p( $path );
-        }
-
-        $filename = $path . $this->get_filename();
-        $fp = fopen($filename, "w");
-        foreach ( $items as $item ) {
-            fwrite($fp, $item);
-            fwrite($fp, "\n");
-        }
-        fclose($fp);
     }
 }

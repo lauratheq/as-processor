@@ -51,14 +51,6 @@ abstract class Sync implements Syncable
     abstract function process_chunk(array $data): void;
 
     /**
-     * Handles the actual data processing. Should be implemented in the class lowest in hierarchy
-     *
-     * @param \Generator $chunkData
-     * @return void
-     */
-    abstract function process_chunk_data(\Generator $chunkData): void;
-
-    /**
      * Returns the sync group name. If none set it will generate one from the sync name and the current time
      *
      * @return string
@@ -111,21 +103,6 @@ abstract class Sync implements Syncable
         }
 
         $this->sync_group_name = $action->get_group();
-    }
-
-    /**
-     * Schedules an async action to process a chunk of data
-     *
-     * @param array $data
-     * @return void
-     */
-    protected function schedule_chunk(array $data): void
-    {
-        as_enqueue_async_action(
-            $this->get_sync_name() . '/process_chunk',
-            [$data], // Wrap in array to pass as single argument. Needed because of abstract child method enforcement
-            $this->get_sync_group_name()
-        );
     }
 
     /**
