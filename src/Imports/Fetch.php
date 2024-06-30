@@ -60,6 +60,11 @@ abstract class Fetch extends Import
             $this->index = $index;
         }
 
+        $last_request = $this->get_sync_data('last_request');
+        if ($last_request + $this->time_between_requests < microtime(true) ) {
+            usleep($this->time_between_requests);
+        }
+
         $data = $this->process_fetch();
 
         if (empty($data)) {
@@ -98,7 +103,7 @@ abstract class Fetch extends Import
             $newTime = $microtime + ($this->time_between_requests / 1000);
 
             // Schedule next request
-            as_schedule_single_action( (int) $newTime, $this->get_sync_name(), [
+            as_enqueue_async_action($this->get_sync_name(), [
                 'index' => $this->next
             ], $this->get_sync_group_name() );
         }
