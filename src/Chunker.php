@@ -3,6 +3,7 @@
 namespace juvo\AS_Processor;
 
 use Exception;
+use Generator;
 use Iterator;
 
 trait Chunker
@@ -115,5 +116,13 @@ trait Chunker
         // Remove chunk file after sync
         unlink($chunk_file_path);
     }
+
+    /**
+     * Handles the actual data processing. Should be implemented in the class lowest in hierarchy
+     *
+     * @param Generator $chunkData
+     * @return void
+     */
+    abstract function process_chunk_data(Generator $chunkData): void;
 
 }

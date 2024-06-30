@@ -16,12 +16,4 @@ abstract class Import extends Sync
         $this->import_chunk($chunk_file_path);
     }
 
-    /**
-     * Handles the actual data processing. Should be implemented in the class lowest in hierarchy
-     *
-     * @param \Generator $chunkData
-     * @return void
-     */
-    abstract function process_chunk_data(\Generator $chunkData): void;
-
 }
