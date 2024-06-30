@@ -63,8 +63,10 @@ abstract class Fetch extends Import
 
         // Check if last request is at least the configured interval ago
         $last_request = $this->get_sync_data('last_request') ?: 0;
-        if ($last_request + $this->time_between_requests < microtime(true)) {
-            usleep($this->time_between_requests);
+        $now = microtime(true);
+        if ($last_request + ($this->time_between_requests / 1000) < $now) {
+            $sleep_time = (($last_request + ($this->time_between_requests / 1000)) - $now) * 1000000;
+            usleep($sleep_time);
         }
 
         $data = $this->process_fetch();
