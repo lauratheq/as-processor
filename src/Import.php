@@ -6,7 +6,6 @@ use Exception;
 
 abstract class Import extends Sync
 {
-    use Chunker;
 
     /**
      * @param string $chunk_file_path

@@ -9,6 +9,7 @@ abstract class Sync implements Syncable
 {
 
     use Sync_Data;
+    use Chunker;
 
     const SERIALIZED_DELIMITER = "\n--END--\n";
 
