@@ -34,10 +34,11 @@ trait Chunker
     /**
      * Schedules an async action to process a chunk of data. Passed items are serialized and added to a chunk.
      *
-     * @param Iterator $chunkData
+     * @param array|Iterator $chunkData
      * @return void
+     * @throws Exception
      */
-    protected function schedule_chunk(Iterator $chunkData): void
+    protected function schedule_chunk(array|Iterator $chunkData): void
     {
         $filename = $this->get_chunk_path();
 
@@ -61,18 +62,17 @@ trait Chunker
      * Callback function for the single chunk jobs.
      * This jobs reads the chunk file line by line and yields each line to the actual process
      *
-     * @param array $data The array passed by the "schedule_chunk" method
+     * @param string $chunk_file_path
      * @return void
      * @throws Exception
      */
-    protected function import_chunk(array $data): void
+    protected function import_chunk(string $chunk_file_path): void
     {
-        $chunkFilePath = $data['chunk_file_path'] ?? "";
-        if (!file_exists($chunkFilePath)) {
-            throw new Exception("File '$chunkFilePath' does not exist");
+        if (!file_exists($chunk_file_path)) {
+            throw new Exception("File '$chunk_file_path' does not exist");
         }
 
-        $file = fopen($chunkFilePath, 'r');
+        $file = fopen($chunk_file_path, 'r');
         $buffer = '';
 
         /**
@@ -113,7 +113,7 @@ trait Chunker
         fclose($file);
 
         // Remove chunk file after sync
-        unlink($chunkFilePath);
+        unlink($chunk_file_path);
     }
 
 }

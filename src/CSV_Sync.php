@@ -10,7 +10,6 @@ use League\Csv\UnavailableStream;
 abstract class CSV_Sync extends Import
 {
 
-    const SERIALIZED_DELIMITER = "\n--END--\n";
     protected int $chunkSize = 5000;
     protected string $delimiter = ',';
     protected bool $hasHeader = true;
