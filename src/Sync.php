@@ -10,6 +10,8 @@ abstract class Sync implements Syncable
 
     use Sync_Data;
 
+    const SERIALIZED_DELIMITER = "\n--END--\n";
+
     private string $sync_group_name;
 
     public function __construct() {
@@ -43,12 +45,12 @@ abstract class Sync implements Syncable
     abstract function get_sync_name(): string;
 
     /**
-     * Callback for the Chunk jobs
+     * Callback for the Chunk jobs. The child implementation either dispatches to an import or an export
      *
-     * @param array $data Data is wrapped in array to pass as single argument. Needed because of abstract child method enforcement
+     * @param string $chunk_file_path
      * @return void
      */
-    abstract function process_chunk(array $data): void;
+    abstract function process_chunk(string $chunk_file_path): void;
 
     /**
      * Returns the sync group name. If none set it will generate one from the sync name and the current time

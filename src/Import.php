@@ -9,6 +9,7 @@ abstract class Import extends Sync
     use Chunker;
 
     /**
+     * @param string $chunk_file_path
      * @throws Exception
      */
     public function process_chunk(string $chunk_file_path): void
