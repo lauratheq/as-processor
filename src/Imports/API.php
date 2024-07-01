@@ -5,7 +5,7 @@ namespace juvo\AS_Processor\Imports;
 use Exception;
 use juvo\AS_Processor\Import;
 
-abstract class Fetch extends Import
+abstract class API extends Import
 {
 
     /**
