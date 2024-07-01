@@ -64,17 +64,17 @@ abstract class Fetch extends Import
         // Check if last request is at least the configured interval ago
         $last_request = $this->get_sync_data('last_request') ?: 0;
         $last_request = ($last_request + $this->time_between_requests) * 1000000; // Both are in seconds
-        $now = (int) (microtime(true) * 1000000); // Convert current time to microseconds
+        $now = (int)(microtime(true) * 1000000);                                  // Convert current time to microseconds
 
-        if ($last_request > $now) { // If last request + interval is in the future
-            $sleep_time = $last_request - $now; // Time to sleep in microseconds
+        if ($last_request > $now) {                  // If last request + interval is in the future
+            $sleep_time = (int)$last_request - $now; // Time to sleep in microseconds
 
             // Check if sleep time is longer than 1 second (1,000,000 microseconds). Workaround required as stated in php docs
             if ($sleep_time >= 1000000) {
-                $seconds = (int)($sleep_time / 1000000); // Extract seconds
-                $microseconds = $sleep_time % 1000000; // Extract remaining microseconds
-                sleep($seconds); // Sleep for the seconds part
-                usleep($microseconds); // Sleep for the remaining microseconds
+                $seconds = ($sleep_time / 1000000);                // Extract seconds
+                $microseconds = $sleep_time % 1000000;             // Extract remaining microseconds
+                sleep((int)$seconds);                              // Sleep for the seconds part
+                usleep($microseconds);                             // Sleep for the remaining microseconds
             } else {
                 usleep($sleep_time); // Sleep for durations less than 1 second
             }
@@ -113,7 +113,7 @@ abstract class Fetch extends Import
             if ($this->time_between_requests >= 15) {
                 // Longer request intervals (> 15 sec) are scheduled since they would unnecessarily keep php requests alive
                 as_schedule_single_action(
-                    ceil(microtime(true) + $this->time_between_requests),
+                    (int)ceil(microtime(true) + $this->time_between_requests),
                     $this->get_sync_name(),
                     ['index' => $this->next],
                     $this->get_sync_group_name());
@@ -127,7 +127,7 @@ abstract class Fetch extends Import
 
         $this->update_sync_data([
             'pending_items' => $items,
-            'last_request' => microtime(true),
+            'last_request'  => microtime(true),
         ]);
     }
 
