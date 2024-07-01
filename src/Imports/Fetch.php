@@ -24,11 +24,11 @@ abstract class Fetch extends Import
     protected bool|string|int $next = 0;
 
     /**
-     * Sets the time between requests in microseconds. Default = 1/4 sec
+     * Sets the time between requests in seconds. Default = 1/4 sec
      *
-     * @var int $time_between_requests
+     * @var float $time_between_requests
      */
-    protected int $time_between_requests = 250000;
+    protected float $time_between_requests = 0.25;
 
     /**
      * The size of the chunks
@@ -63,7 +63,7 @@ abstract class Fetch extends Import
 
         // Check if last request is at least the configured interval ago
         $last_request = $this->get_sync_data('last_request') ?: 0;
-        $last_request = $last_request + $this->time_between_requests; // Both are in microseconds
+        $last_request = ($last_request + $this->time_between_requests) * 1000000; // Both are in seconds
         $now = (int) (microtime(true) * 1000000); // Convert current time to microseconds
 
         if ($last_request > $now) { // If last request + interval is in the future
@@ -110,18 +110,13 @@ abstract class Fetch extends Import
         if ($this->next === false) {
             $this->schedule_chunk($items);
         } else {
-
-            // Reinitialize now in microseconds
-            $now = (int) (microtime(true) * 1000000);
-
-            // Add the milliseconds to the current time
-            $newTime = $now + $this->time_between_requests;
-
-            if ($this->time_between_requests >= 15000) {
+            if ($this->time_between_requests >= 15) {
                 // Longer request intervals (> 15 sec) are scheduled since they would unnecessarily keep php requests alive
-                as_schedule_single_action($newTime, $this->get_sync_name(), [
-                    'index' => $this->next
-                ], $this->get_sync_group_name());
+                as_schedule_single_action(
+                    ceil(microtime(true) + $this->time_between_requests),
+                    $this->get_sync_name(),
+                    ['index' => $this->next],
+                    $this->get_sync_group_name());
             } else {
                 // Queue next request as async because wait interval under 10sec can be handled in one request
                 as_enqueue_async_action($this->get_sync_name(), [
