@@ -9,6 +9,9 @@ abstract class Sync implements Syncable
 {
 
     use Sync_Data;
+    use Chunker;
+
+    const SERIALIZED_DELIMITER = "\n--END--\n";
 
     private string $sync_group_name;
 
@@ -43,20 +46,12 @@ abstract class Sync implements Syncable
     abstract function get_sync_name(): string;
 
     /**
-     * Callback for the Chunk jobs
+     * Callback for the Chunk jobs. The child implementation either dispatches to an import or an export
      *
-     * @param array $data Data is wrapped in array to pass as single argument. Needed because of abstract child method enforcement
+     * @param string $chunk_file_path
      * @return void
      */
-    abstract function process_chunk(array $data): void;
-
-    /**
-     * Handles the actual data processing. Should be implemented in the class lowest in hierarchy
-     *
-     * @param \Generator $chunkData
-     * @return void
-     */
-    abstract function process_chunk_data(\Generator $chunkData): void;
+    abstract function process_chunk(string $chunk_file_path): void;
 
     /**
      * Returns the sync group name. If none set it will generate one from the sync name and the current time
@@ -111,21 +106,6 @@ abstract class Sync implements Syncable
         }
 
         $this->sync_group_name = $action->get_group();
-    }
-
-    /**
-     * Schedules an async action to process a chunk of data
-     *
-     * @param array $data
-     * @return void
-     */
-    protected function schedule_chunk(array $data): void
-    {
-        as_enqueue_async_action(
-            $this->get_sync_name() . '/process_chunk',
-            [$data], // Wrap in array to pass as single argument. Needed because of abstract child method enforcement
-            $this->get_sync_group_name()
-        );
     }
 
     /**
