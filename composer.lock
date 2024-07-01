@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a3ffd8a288be99729781fb5f730de4d7",
+    "content-hash": "3156ce9d476244e691e88e04bf86c1b3",
     "packages": [
         {
             "name": "cardinalby/content-disposition",
