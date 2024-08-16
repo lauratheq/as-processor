@@ -55,6 +55,9 @@ abstract class CSV_Sync extends Import
         }
 
         // Remove chunk file after sync
-        unlink($csvFilePath);
+        $unlink_result = unlink($csvFilePath);
+        if ( $unlink_result === false ) {
+            throw new Exception("File '$csvFilePath' could not be deleted!");
+        }
     }
 }

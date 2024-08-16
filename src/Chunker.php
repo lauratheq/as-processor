@@ -5,6 +5,7 @@ namespace juvo\AS_Processor;
 use Exception;
 use Generator;
 use Iterator;
+use juvo\AS_Processor\Helper;
 
 trait Chunker
 {
@@ -29,6 +30,7 @@ trait Chunker
         }
 
         $path = strtolower($tmp . $filename);
+        $path = Helper::normalize_path($path);
         return apply_filters('as_processor/chunk/path', $path, $this);
     }
 
@@ -124,7 +126,10 @@ trait Chunker
         fclose($file);
 
         // Remove chunk file after sync
-        unlink($chunk_file_path);
+        $unlink_result = unlink($chunk_file_path);
+        if ( $unlink_result === false ) {
+            throw new Exception("File '$chunk_file_path' could not be deleted!");
+        }
     }
 
     /**
