@@ -29,7 +29,7 @@ abstract class Sync implements Syncable, Stats_Saver
      */
     public function set_hooks(): void
     {
-        add_action('action_scheduler_before_execute', [$this, 'track_action_start'], 10, 2);
+        add_action('action_scheduler_begin_execute', [$this, 'track_action_start'], 10, 2);
         add_action('action_scheduler_completed_action', [$this, 'maybe_trigger_last_in_group']);
         add_action($this->get_sync_name() . '/process_chunk', [$this, 'process_chunk']);
 
