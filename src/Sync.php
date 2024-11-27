@@ -43,6 +43,10 @@ abstract class Sync implements Syncable, Stats_Saver
         if (method_exists($this, 'on_fail')) {
             add_action($this->get_sync_name() . '/fail', [$this, 'on_fail'], 10, 3);
         }
+
+        // Hooks for chunk cleanup
+        $this->schedule_chunk_cleanup();
+        add_action( 'ASP/Chunks/Cleanup', [ $this, 'cleanup_chunk_data' ] );
     }
 
     /**
@@ -55,10 +59,10 @@ abstract class Sync implements Syncable, Stats_Saver
     /**
      * Callback for the Chunk jobs. The child implementation either dispatches to an import or an export
      *
-     * @param string $chunk_file_path
+     * @param int $chunk_id
      * @return void
      */
-    abstract function process_chunk(string $chunk_file_path): void;
+    abstract function process_chunk(int $chunk_id): void;
 
     /**
      * Returns the sync group name. If none set it will generate one from the sync name and the current time

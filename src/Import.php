@@ -37,12 +37,12 @@ abstract class Import extends Sync
 	abstract public function split_data_into_chunks():void;
     
     /**
-     * @param string $chunk_file_path
+     * @param int $chunk_id
      * @throws Exception
      */
-    public function process_chunk(string $chunk_file_path): void
+    public function process_chunk(int $chunk_id): void
     {
-        $this->import_chunk($chunk_file_path);
+        $this->import_chunk($chunk_id);
     }
 
 }
