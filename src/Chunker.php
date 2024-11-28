@@ -85,13 +85,13 @@ trait Chunker
             "SELECT data FROM {$this->get_chunks_table_name()} WHERE id = %s",
             $chunk_id
         );
-        $results = $this->db()->get_results( $data_query, ARRAY_A );
-        if ( empty( $results[0]['data'] ) ) {
+        $results = $this->db()->get_row( $data_query, ARRAY_A );
+        if ( empty( $results['data'] ) ) {
             throw new Exception( 'Empty data' );
         }
 
         // process the data
-        $data = unserialize($results[0]['data']);
+        $data = unserialize($results['data']);
 
         // Convert array to Generator
         $generator = (function () use ($data) {
