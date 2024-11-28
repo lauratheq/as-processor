@@ -142,14 +142,34 @@ trait Chunker
      */
     public function cleanup_chunk_data(): void
     {
-        // Get date 2 days ago in MySQL format
-        $two_days_ago = gmdate( 'Y-m-d H:i:s', strtotime( '-2 days' ) );
+        /**
+         * Filters the number of days to keep chunk data.
+         *
+         * @param string $interval The interval string (e.g., '-14 days').
+         */
+        $days_interval = apply_filters( 'asp/chunk/cleanup/days', '-14 days' );
+        $cleanup_timestamp = (float) strtotime( $days_interval );
 
-        $query = $this->db()->prepare(
-            "DELETE FROM {$this->get_chunks_table_name()} WHERE status = %s AND start < %s",
-            'finished',
-            $two_days_ago
-        );
+        /**
+         * Filters the status of chunks to clean up.
+         *
+         * @param string $status The status to filter by (default: 'all').
+         */
+        $status = apply_filters('asp/chunk/cleanup/status', 'all');
+
+        $query = '';
+        if ( 'all' === $status ) {
+            $query = $this->db()->prepare(
+                "DELETE FROM {$this->get_chunks_table_name()} WHERE start < %f",
+                $cleanup_timestamp
+            );
+        } else {
+            $query = $this->db()->prepare(
+                "DELETE FROM {$this->get_chunks_table_name()} WHERE status = %s AND start < %f",
+                $status,
+                $cleanup_timestamp
+            );
+        }
 
         $this->db()->query( $query );
     }
