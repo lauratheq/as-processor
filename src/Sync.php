@@ -13,8 +13,6 @@ abstract class Sync implements Syncable, Stats_Saver
     use Sync_Data;
     use Chunker;
 
-    const SERIALIZED_DELIMITER = "\n--END--\n";
-
     private string $sync_group_name;
 
     public function __construct()
@@ -128,6 +126,15 @@ abstract class Sync implements Syncable, Stats_Saver
             return;
         }
 
+        // set the end time of the chunk
+        $action_arguments = $action->get_args();
+        if ( !empty( $action_arguments['chunk_id'] ) ) {
+            $this->update_chunk( $action_arguments['chunk_id'], array(
+                'status' => 'finished',
+                'end'    => microtime(),
+            ) );
+        }
+
         // Mark action as complete
         $this->get_stats()->end_action($action_id);
 
@@ -162,6 +169,16 @@ abstract class Sync implements Syncable, Stats_Saver
         $action = $this->action_belongs_to_sync($action_id);
         if (!$action || empty($action->get_group())) {
             return;
+        }
+
+        // set the start time of the chunk
+        $action_arguments = $action->get_args();
+        if ( !empty( $action_arguments['chunk_id'] ) ) {
+            $this->update_chunk( $action_arguments['chunk_id'], array(
+                'status'    => 'finished',
+                'action_id' => $action_id,
+                'start'     => microtime(),
+            ) );
         }
 
         $this->sync_group_name = $action->get_group();
@@ -206,6 +223,15 @@ abstract class Sync implements Syncable, Stats_Saver
         $action = $this->action_belongs_to_sync($action_id);
         if (!$action || empty($action->get_group())) {
             return;
+        }
+
+        // set the end time of the chunk
+        $action_arguments = $action->get_args();
+        if ( !empty( $action_arguments['chunk_id'] ) ) {
+            $this->update_chunk( $action_arguments['chunk_id'], array(
+                'status' => 'failed',
+                'end'    => microtime(),
+            ) );
         }
 
         // Update stats

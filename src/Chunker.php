@@ -77,8 +77,10 @@ trait Chunker
      */
     protected function import_chunk(int $chunk_id): void
     {
-        // set the start time of the chunk "running"
-        $this->update_chunk( $chunk_id, 'running', microtime() );
+        // set the new status of the chunk
+        $this->update_chunk( $chunk_id, array(
+            'status' => 'running'
+        ) );
 
         // fetch the data
         $data_query = $this->db()->prepare(
@@ -101,9 +103,6 @@ trait Chunker
         })();
 
         $this->process_chunk_data($generator);
-
-        // set the start time of the chunk ----> Move to Sync.php, see TODO
-        $this->update_chunk( $chunk_id, 'finished', null, microtime() );
     }
 
     /**
@@ -178,40 +177,41 @@ trait Chunker
      * Updates the chunk status and timestamps in the database.
      *
      * @param int $chunk_id The chunk ID to update
-     * @param string|null $status The new status to set
-     * @param string|null $start The new start timestamp (MySQL format)
-     * @param string|null $end The new end timestamp (MySQL format)
+     * @param array{
+     *     status?: string,
+     *     start?: string,
+     *     end?: string,
+     *     action_id?: int
+     * } $arguments The update arguments
      * @return void
      */
-    protected function update_chunk( int $chunk_id, string $status = null, string $start = null, string $end = null ): void
-    {
+    protected function update_chunk( int $chunk_id, array $arguments = [] ): void {
         if ( ! $chunk_id ) {
             return;
         }
-
+    
         $table_name = $this->get_chunks_table_name();
         $data = array();
         $formats = array();
-
-        if ( null !== $status ) {
-            $data['status'] = $status;
-            $formats[] = '%s';
+    
+        $allowed_fields = array(
+            'status'    => '%s',
+            'start'     => '%s',
+            'end'       => '%s',
+            'action_id' => '%d',
+        );
+    
+        foreach ( $allowed_fields as $field => $format ) {
+            if ( isset( $arguments[ $field ] ) ) {
+                $data[ $field ] = $arguments[ $field ];
+                $formats[] = $format;
+            }
         }
-
-        if ( null !== $start ) {
-            $data['start'] = $start;
-            $formats[] = '%s';
-        }
-
-        if ( null !== $end ) {
-            $data['end'] = $end;
-            $formats[] = '%s';
-        }
-
+    
         if ( empty( $data ) ) {
             return;
         }
-
+    
         $this->db()->update(
             $table_name,
             $data,

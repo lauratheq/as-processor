@@ -67,8 +67,8 @@ trait DB
             name text NOT NULL,
             status text NOT NULL,
             data longtext NOT NULL,
-            start DECIMAL(20,6) DEFAULT NULL,
-            end DECIMAL(20,6) DEFAULT NULL,
+            start VARCHAR(25) DEFAULT NULL,
+            end VARCHAR(25) DEFAULT NULL,
             PRIMARY KEY  (id)
         ) {$charset_collate}";
 
