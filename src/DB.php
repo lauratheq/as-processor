@@ -61,20 +61,18 @@ trait DB
     {
         $table_name = $wpdb->prefix . $this->table_name_chunks;
 
-        if ($wpdb->get_var("SHOW TABLES LIKE '{$table_name}'") !== $table_name) {
-            $charset_collate = $wpdb->get_charset_collate();
+        $charset_collate = $wpdb->get_charset_collate();
+        $sql = "CREATE TABLE {$table_name} (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            name text NOT NULL,
+            status text NOT NULL,
+            data longtext NOT NULL,
+            start DECIMAL(20,6) DEFAULT NULL,
+            end DECIMAL(20,6) DEFAULT NULL,
+            PRIMARY KEY  (id)
+        ) {$charset_collate}";
 
-            $sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
-                id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-                name text NOT NULL,
-                status text NOT NULL,
-                data longtext NOT NULL,
-                start datetime DEFAULT NULL,
-                end datetime DEFAULT NULL,
-                PRIMARY KEY  (id)
-            ) {$charset_collate}";
-
-            $wpdb->query($sql);
-        }
+        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+        dbDelta($sql);
     }
 }

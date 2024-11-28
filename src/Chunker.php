@@ -77,8 +77,8 @@ trait Chunker
      */
     protected function import_chunk(int $chunk_id): void
     {
-        // set the start time of the chunk
-        $this->update_chunk( $chunk_id, 'started', current_time('mysql', true) );
+        // set the start time of the chunk "running"
+        $this->update_chunk( $chunk_id, 'running', microtime() );
 
         // fetch the data
         $data_query = $this->db()->prepare(
@@ -102,8 +102,8 @@ trait Chunker
 
         $this->process_chunk_data($generator);
 
-        // set the start time of the chunk
-        $this->update_chunk( $chunk_id, 'finished', null, current_time('mysql', true) );
+        // set the start time of the chunk ----> Move to Sync.php, see TODO
+        $this->update_chunk( $chunk_id, 'finished', null, microtime() );
     }
 
     /**
