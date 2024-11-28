@@ -43,9 +43,10 @@ trait Chunker
         // create the new chunk
         $chunk = new Chunk();
         $chunk->update([
-            'name' => $this->get_sync_name(),
+            'name'   => $this->get_sync_name(),
+            'group'  => $this->get_sync_group_name(),
             'status' => 'scheduled',
-            'data' => $chunkData
+            'data'   => $chunkData
         ]);
 
         as_enqueue_async_action(
@@ -69,7 +70,7 @@ trait Chunker
     {
         // set the new status of the chunk
         $chunk = new Chunk( $chunk_id );
-        $this->update( $chunk_id, array(
+        $chunk->update( array(
             'status' => 'running'
         ) );
 

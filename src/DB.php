@@ -65,6 +65,7 @@ trait DB
         $sql = "CREATE TABLE {$table_name} (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             name text NOT NULL,
+            `group` text NOT NULL,
             status text NOT NULL,
             data longtext NOT NULL,
             start VARCHAR(25) DEFAULT NULL,

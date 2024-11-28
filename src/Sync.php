@@ -178,7 +178,7 @@ abstract class Sync implements Syncable, Stats_Saver
         if ( !empty( $action_arguments['chunk_id'] ) ) {
             $chunk = new Chunk( $action_arguments['chunk_id'] );
             $chunk->update( [
-                'status'    => 'finished',
+                'status'    => 'started',
                 'action_id' => $action_id,
                 'start'     => microtime(),
             ] );

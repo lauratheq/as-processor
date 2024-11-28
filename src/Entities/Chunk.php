@@ -35,6 +35,11 @@ class Chunk
     /**
      * @var string|null
      */
+    private ?string $group = null;
+
+    /**
+     * @var string|null
+     */
     private ?string $status = null;
 
     /**
@@ -70,8 +75,9 @@ class Chunk
     public function __construct( ?int $chunk_id = null ) {
         if ( empty( $chunk_id ) ) {
             $this->chunk_id = $this->create_chunk();
+        } else {
+            $this->chunk_id = $chunk_id;
         }
-        $this->chunk_id = $chunk_id;
     }
 
     /**
@@ -83,9 +89,8 @@ class Chunk
     protected function create_chunk(): int
     {
         $query = $this->db()->prepare(
-            "INSERT INTO {$this->get_chunks_table_name()}
-            (name, status, data, start, end)
-            VALUES (NULL, NULL, NULL, NULL, NULL)"
+            "INSERT INTO {$this->get_chunks_table_name()} SET name = %s",
+            null
         );
         $result = $this->db()->query($query);
         if ( false === $result ) {
@@ -114,6 +119,7 @@ class Chunk
         if ( $data ) {
             $this->action_id = (int) $data->action_id;
             $this->name     = $data->name;
+            $this->group    = $data->group;
             $this->status   = $data->status;
             $this->data     = unserialize( $data->data );
             $this->start    = $data->start;
@@ -155,6 +161,18 @@ class Chunk
             $this->fetch_data();
         }
         return $this->name;
+    }
+
+    /**
+     * Get the group
+     *
+     * @return string
+     */
+    public function get_group(): string {
+        if ( ! $this->is_data_fetched ) {
+            $this->fetch_data();
+        }
+        return $this->group;
     }
 
     /**
@@ -264,6 +282,8 @@ class Chunk
      * Update multiple chunk properties at once
      *
      * @param array{
+     *     name?: string,
+     *     group?: string
      *     status?: string,
      *     start?: string,
      *     end?: string,
@@ -285,10 +305,11 @@ class Chunk
         // Handle other fields
         $allowed_fields = array(
             'name'      => '%s',
+            'group'     => '%s',
             'status'    => '%s',
             'start'     => '%s',
             'end'       => '%s',
-            'action_id' => '%d',
+            'action_id' => '%d'
         );
         $allowed_fields = apply_filters( 'asp/chunks/allowed_fields', $allowed_fields );
         $allowed_fields = array_keys( $allowed_fields );
@@ -310,10 +331,12 @@ class Chunk
      * @param int $chunk_id The chunk ID to update
      * @param array{
      *     name?: string,
+     *     group?: string
      *     status?: string,
      *     start?: string,
      *     end?: string,
-     *     action_id?: int
+     *     action_id?: int,
+     *     data?: string
      * } $arguments The update arguments
      * @return void
      */
@@ -328,10 +351,12 @@ class Chunk
     
         $allowed_fields = array(
             'name'      => '%s',
+            'group'     => '%s',
             'status'    => '%s',
             'start'     => '%s',
             'end'       => '%s',
             'action_id' => '%d',
+            'data'      => '%s'
         );
         $allowed_fields = apply_filters( 'asp/chunks/allowed_fields', $allowed_fields );
     
