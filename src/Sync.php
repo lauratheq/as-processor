@@ -6,6 +6,7 @@ use ActionScheduler;
 use ActionScheduler_Action;
 use ActionScheduler_Store;
 use Exception;
+use juvo\AS_Processor\Entities\Chunk;
 
 abstract class Sync implements Syncable, Stats_Saver
 {
@@ -129,10 +130,11 @@ abstract class Sync implements Syncable, Stats_Saver
         // set the end time of the chunk
         $action_arguments = $action->get_args();
         if ( !empty( $action_arguments['chunk_id'] ) ) {
-            $this->update_chunk( $action_arguments['chunk_id'], array(
+            $chunk = new Chunk( $action_arguments['chunk_id'] );
+            $chunk->update( [
                 'status' => 'finished',
                 'end'    => microtime(),
-            ) );
+            ] );
         }
 
         // Mark action as complete
@@ -174,11 +176,12 @@ abstract class Sync implements Syncable, Stats_Saver
         // set the start time of the chunk
         $action_arguments = $action->get_args();
         if ( !empty( $action_arguments['chunk_id'] ) ) {
-            $this->update_chunk( $action_arguments['chunk_id'], array(
+            $chunk = new Chunk( $action_arguments['chunk_id'] );
+            $chunk->update( [
                 'status'    => 'finished',
                 'action_id' => $action_id,
                 'start'     => microtime(),
-            ) );
+            ] );
         }
 
         $this->sync_group_name = $action->get_group();
@@ -228,10 +231,11 @@ abstract class Sync implements Syncable, Stats_Saver
         // set the end time of the chunk
         $action_arguments = $action->get_args();
         if ( !empty( $action_arguments['chunk_id'] ) ) {
-            $this->update_chunk( $action_arguments['chunk_id'], array(
+            $chunk = new Chunk( $action_arguments['chunk_id'] );
+            $chunk->update( [
                 'status' => 'failed',
                 'end'    => microtime(),
-            ) );
+            ] );
         }
 
         // Update stats
