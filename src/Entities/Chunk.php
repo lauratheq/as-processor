@@ -283,7 +283,7 @@ class Chunk
      *
      * @param array{
      *     name?: string,
-     *     group?: string
+     *     group?: string,
      *     status?: string,
      *     start?: string,
      *     end?: string,
@@ -331,7 +331,7 @@ class Chunk
      * @param int $chunk_id The chunk ID to update
      * @param array{
      *     name?: string,
-     *     group?: string
+     *     group?: string,
      *     status?: string,
      *     start?: string,
      *     end?: string,
