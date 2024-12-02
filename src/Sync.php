@@ -8,7 +8,7 @@ use ActionScheduler_Store;
 use Exception;
 use juvo\AS_Processor\Entities\Chunk;
 
-abstract class Sync implements Syncable, Stats_Saver
+abstract class Sync implements Syncable
 {
 
     use Sync_Data;
@@ -137,16 +137,9 @@ abstract class Sync implements Syncable, Stats_Saver
             ] );
         }
 
-        // Mark action as complete
-        $this->get_stats()->end_action($action_id);
-
         // Check if action of the same group is running or pending
         $actions = $this->get_actions(status: [ActionScheduler_Store::STATUS_PENDING, ActionScheduler_Store::STATUS_RUNNING], per_page: 1);
         if (count($actions) === 0) {
-
-            // Mark sync as complete
-            $this->get_stats()->end_sync();
-
             as_enqueue_async_action(
                 $this->get_sync_name() . '/complete',
                 [], // empty arguments array
@@ -166,7 +159,7 @@ abstract class Sync implements Syncable, Stats_Saver
      * @return void
      * @throws Exception
      */
-    public function track_action_start(int $action_id, mixed $context)
+    public function track_action_start(int $action_id, mixed $context): void
     {
         $action = $this->action_belongs_to_sync($action_id);
         if (!$action || empty($action->get_group())) {
@@ -185,11 +178,6 @@ abstract class Sync implements Syncable, Stats_Saver
         }
 
         $this->sync_group_name = $action->get_group();
-
-        // Track action start if it is not the complete action
-        if (!str_contains($action->get_hook(), "/complete")) {
-            $this->get_stats()->add_action($action_id);
-        }
     }
 
     /**
@@ -238,28 +226,6 @@ abstract class Sync implements Syncable, Stats_Saver
             ] );
         }
 
-        // Update stats
-        $this->get_stats()->mark_action_as_failed($action_id, $e->getMessage());
-
         do_action($this->get_sync_name() . '/fail', $action, $e, $action_id);
     }
-
-    /**
-     * Returns the stats object and pass this instance as saver.
-     *
-     * @throws Exception
-     */
-    public function get_stats(): Stats
-    {
-        return $this->get_sync_data('stats') ?: new Stats($this);
-    }
-
-    /**
-     * @throws Exception
-     */
-    public function save_stats(Stats $stats): void
-    {
-        $this->update_sync_data(['stats' => $stats], true, true);
-    }
-
 }

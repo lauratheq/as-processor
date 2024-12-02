@@ -19,9 +19,6 @@ abstract class Import extends Sync
 	{
 		parent::set_hooks();
 		add_action($this->get_sync_name(), [$this, 'split_data_into_chunks']);
-        add_action($this->get_sync_name(), function() {
-            $this->get_stats()->start_sync();
-        });
 	}
 
     /**
