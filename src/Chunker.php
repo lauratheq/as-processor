@@ -136,7 +136,7 @@ trait Chunker
          *
          * @param string $status The status to filter by (default: 'all').
          */
-        $status = apply_filters('asp/chunks/cleanup/status', ProcessStatus::ALL);
+        $status = apply_filters('asp/chunks/cleanup/status', ProcessStatus::ALL->value);
 
         $query = '';
         if ( 'all' === $status ) {

@@ -336,7 +336,7 @@ class Stats
             foreach ($failed_actions as $action) {
                 $chunk = new Chunk( $action['id'] );
                 $email_text .= sprintf(__("Action ID: %s", 'as-processor'), $chunk->get_action_id()) . "\n";
-                $email_text .= sprintf(__("Status: %s", 'as-processor'), $chunk->get_status()) . "\n";
+                $email_text .= sprintf(__("Status: %s", 'as-processor'), $chunk->get_status()->value) . "\n";
                 $email_text .= sprintf(__("Start: %s", 'as-processor'), $chunk->get_start()->format('Y-m-d H:i:s')) . "\n";
                 $email_text .= sprintf(__("End: %s", 'as-processor'), $chunk->get_end()->format('Y-m-d H:i:s')) . "\n";
                 if ($action['status'] === 'failed') {

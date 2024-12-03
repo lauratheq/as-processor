@@ -60,11 +60,6 @@ class Chunk
     private ?DateTimeImmutable $end = null;
 
     /**
-     * @var DateInterval|null
-     */
-    private ?DateInterval $duration = null;
-
-    /**
      * @var bool
      */
     private bool $is_data_fetched = false;
@@ -244,8 +239,8 @@ class Chunk
         $start = $this->start;
 
         // Get timestamps with microseconds
-        $end_time = (float) sprintf('%d.%d', $end->getTimestamp(), $end->format('u') / 1000);
-        $start_time = (float) sprintf('%d.%d', $start->getTimestamp(), $start->format('u') / 1000);
+        $end_time = (float) sprintf('%d.%d', $end->getTimestamp(), (int) $end->format('u') / 1000);
+        $start_time = (float) sprintf('%d.%d', $start->getTimestamp(), (int) $start->format('u') / 1000);
 
         // Simple subtraction gives us the duration in seconds
         return $end_time - $start_time;
@@ -356,7 +351,7 @@ class Chunk
             $data['start'] = (float) sprintf(
                 '%d.%d',
                 $this->start->getTimestamp(),
-                $this->start->format('u') / 1000
+                (int) $this->start->format('u') / 1000
             );
         }
 
@@ -365,7 +360,7 @@ class Chunk
             $data['end'] = (float) sprintf(
                 '%d.%d',
                 $this->end->getTimestamp(),
-                $this->end->format('u') / 1000
+                (int) $this->end->format('u') / 1000
             );
         }
 
