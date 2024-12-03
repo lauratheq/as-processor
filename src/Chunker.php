@@ -125,21 +125,20 @@ trait Chunker
         /**
          * Filters the number of days to keep chunk data.
          *
-         * @param int $interval The interval (e.g., 14).
+         * @param int $interval The interval (e.g., 14*DAY_IN_SECONDS).
          */
-        $days_interval = apply_filters( 'asp/chunks/cleanup/days', 14 );
-        $days_interval = (int) $days_interval * DAY_IN_SECONDS;
-        $cleanup_timestamp = (int) time() - $days_interval;
+        $interval = apply_filters( 'asp/chunks/cleanup/interval', 14*DAY_IN_SECONDS);
+        $cleanup_timestamp = (int) time() - $interval;
 
         /**
          * Filters the status of chunks to clean up.
          *
-         * @param string $status The status to filter by (default: 'all').
+         * @param ProcessStatus $status The status to filter by (default: 'all').
          */
-        $status = apply_filters('asp/chunks/cleanup/status', ProcessStatus::ALL->value);
+        $status = apply_filters('asp/chunks/cleanup/status', ProcessStatus::ALL);
 
         $query = '';
-        if ( 'all' === $status ) {
+        if ( $status === ProcessStatus::ALL ) {
             $query = $this->db()->prepare(
                 "DELETE FROM {$this->get_chunks_table_name()} WHERE start < %f",
                 $cleanup_timestamp
@@ -147,7 +146,7 @@ trait Chunker
         } else {
             $query = $this->db()->prepare(
                 "DELETE FROM {$this->get_chunks_table_name()} WHERE status = %s AND start < %f",
-                $status,
+                $status->value,
                 $cleanup_timestamp
             );
         }
