@@ -7,6 +7,7 @@ use ActionScheduler_Action;
 use ActionScheduler_Store;
 use Exception;
 use juvo\AS_Processor\Entities\Chunk;
+use juvo\AS_Processor\Entities\ProcessStatus;
 
 abstract class Sync implements Syncable
 {
@@ -131,10 +132,9 @@ abstract class Sync implements Syncable
         $action_arguments = $action->get_args();
         if ( !empty( $action_arguments['chunk_id'] ) ) {
             $chunk = new Chunk( $action_arguments['chunk_id'] );
-            $chunk->update( [
-                'status' => 'finished',
-                'end'    => microtime(),
-            ] );
+            $chunk->set_status( ProcessStatus::FINISHED );
+            $chunk->set_end( microtime(TRUE) );
+            $chunk->save();
         }
 
         // Check if action of the same group is running or pending
@@ -170,11 +170,10 @@ abstract class Sync implements Syncable
         $action_arguments = $action->get_args();
         if ( !empty( $action_arguments['chunk_id'] ) ) {
             $chunk = new Chunk( $action_arguments['chunk_id'] );
-            $chunk->update( [
-                'status'    => 'started',
-                'action_id' => $action_id,
-                'start'     => microtime(),
-            ] );
+            $chunk->set_status( ProcessStatus::STARTED );
+            $chunk->set_action_id( $action_id );
+            $chunk->set_start( microtime(TRUE) );
+            $chunk->save();
         }
 
         $this->sync_group_name = $action->get_group();
@@ -220,10 +219,9 @@ abstract class Sync implements Syncable
         $action_arguments = $action->get_args();
         if ( !empty( $action_arguments['chunk_id'] ) ) {
             $chunk = new Chunk( $action_arguments['chunk_id'] );
-            $chunk->update( [
-                'status' => 'failed',
-                'end'    => microtime(),
-            ] );
+            $chunk->set_status( ProcessStatus::FAILED );
+            $chunk->set_end( microtime(TRUE) );
+            $chunk->save();
         }
 
         do_action($this->get_sync_name() . '/fail', $action, $e, $action_id);

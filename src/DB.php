@@ -7,6 +7,8 @@
 
 namespace juvo\AS_Processor;
 
+use juvo\AS_Processor\Entities\ProcessStatus;
+
 /**
  * Database methods.
  */
@@ -61,16 +63,28 @@ trait DB
     {
         $table_name = $wpdb->prefix . $this->table_name_chunks;
 
+        // Get all enum values and make them sql friendly by wrapping them in quotes
+        $enum_values = array_map(
+            static fn(ProcessStatus $status): string => sprintf("'%s'", $status->value),
+            ProcessStatus::cases()
+        );
+        $enum_definition = implode(',', $enum_values);
+
         $charset_collate = $wpdb->get_charset_collate();
         $sql = "CREATE TABLE {$table_name} (
-            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-            name text NOT NULL,
-            `group` text NOT NULL,
-            status text NOT NULL,
-            data longtext NOT NULL,
-            start VARCHAR(25) DEFAULT NULL,
-            end VARCHAR(25) DEFAULT NULL,
-            PRIMARY KEY  (id)
+            `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            `action_id` bigint(20) unsigned DEFAULT NULL,
+            `name` varchar(255) NOT NULL,
+            `group` varchar(255) NOT NULL,
+            `status` ENUM({$enum_definition}) NOT NULL,
+            `data` longtext NOT NULL,
+            `start` decimal(14,4) DEFAULT NULL,
+            `end` decimal(14,4) DEFAULT NULL,
+            PRIMARY KEY (`id`),
+            KEY `status` (`status`),
+            KEY `start` (`start`),
+            KEY `end` (`end`),
+            KEY `action_id` (`action_id`)
         ) {$charset_collate}";
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';

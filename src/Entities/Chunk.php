@@ -4,10 +4,12 @@
  *
  * @package juvo\AS_Processor
  */
-
 namespace juvo\AS_Processor\Entities;
 
 use Exception;
+use DateTimeImmutable;
+use DateInterval;
+use juvo\AS_Processor\Helper;
 use juvo\AS_Processor\DB;
 
 /**
@@ -18,9 +20,9 @@ class Chunk
     use DB;
 
     /**
-     * @var int
+     * @var int|null
      */
-    private int $chunk_id;
+    private ?int $chunk_id = null;
 
     /**
      * @var int|null
@@ -38,9 +40,9 @@ class Chunk
     private ?string $group = null;
 
     /**
-     * @var string|null
+     * @var ProcessStatus|null
      */
-    private ?string $status = null;
+    private ?ProcessStatus $status = null;
 
     /**
      * @var array<mixed>|null
@@ -48,19 +50,19 @@ class Chunk
     private ?array $data = null;
 
     /**
-     * @var string|null
+     * @var DateTimeImmutable|null
      */
-    private ?string $start = null;
+    private ?DateTimeImmutable $start = null;
 
     /**
-     * @var string|null
+     * @var DateTimeImmutable|null
      */
-    private ?string $end = null;
+    private ?DateTimeImmutable $end = null;
 
     /**
-     * @var string|null
+     * @var DateInterval|null
      */
-    private ?string $duration = null;
+    private ?DateInterval $duration = null;
 
     /**
      * @var bool
@@ -68,36 +70,17 @@ class Chunk
     private bool $is_data_fetched = false;
 
     /**
+     * @var array<object>
+     */
+    private array $logs = [];
+
+    /**
      * Constructor
      *
      * @param int|null $chunk_id The chunk ID.
      */
     public function __construct( ?int $chunk_id = null ) {
-        if ( empty( $chunk_id ) ) {
-            $this->chunk_id = $this->create_chunk();
-        } else {
-            $this->chunk_id = $chunk_id;
-        }
-    }
-
-    /**
-     * Creates a chunk database entry.
-     *
-     * @throws Exception if database returns errors.
-     * @return int the chunk id.
-     */
-    protected function create_chunk(): int
-    {
-        $query = $this->db()->prepare(
-            "INSERT INTO {$this->get_chunks_table_name()} SET name = %s",
-            null
-        );
-        $result = $this->db()->query($query);
-        if ( false === $result ) {
-            throw new Exception('Could not insert chunk data!');
-        }
-        $inserted_id = (int) $this->db()->insert_id;
-        return $inserted_id;
+        $this->chunk_id = $chunk_id;
     }
 
     /**
@@ -120,11 +103,17 @@ class Chunk
             $this->action_id = (int) $data->action_id;
             $this->name     = $data->name;
             $this->group    = $data->group;
-            $this->status   = $data->status;
+            $this->status   = ProcessStatus::from($data->status);
             $this->data     = unserialize( $data->data );
-            $this->start    = $data->start;
-            $this->end      = $data->end;
-            $this->duration = $data->duration;
+            $this->start    = Helper::convert_microtime_to_datetime( $data->start );
+            $this->end      = Helper::convert_microtime_to_datetime( $data->end );
+
+            // Fetch associated logs
+            $logs_query = $this->db()->prepare(
+                "SELECT message FROM {$this->db()->prefix}actionscheduler_logs WHERE action_id = %d ORDER BY log_id ASC",
+                $this->action_id
+            );
+            $this->logs = array_column( $this->db()->get_results( $logs_query ), 'message' );
         }
 
         $this->is_data_fetched = true;
@@ -178,9 +167,9 @@ class Chunk
     /**
      * Get the status
      *
-     * @return string
+     * @return ProcessStatus
      */
-    public function get_status(): string {
+    public function get_status(): ProcessStatus {
         if ( ! $this->is_data_fetched ) {
             $this->fetch_data();
         }
@@ -202,9 +191,9 @@ class Chunk
     /**
      * Get the start time
      *
-     * @return string
+     * @return DateTimeImmutable
      */
-    public function get_start(): string {
+    public function get_start(): DateTimeImmutable {
         if ( ! $this->is_data_fetched ) {
             $this->fetch_data();
         }
@@ -214,9 +203,9 @@ class Chunk
     /**
      * Get the end time
      *
-     * @return string
+     * @return DateTimeImmutable
      */
-    public function get_end(): string {
+    public function get_end(): DateTimeImmutable {
         if ( ! $this->is_data_fetched ) {
             $this->fetch_data();
         }
@@ -224,163 +213,200 @@ class Chunk
     }
 
     /**
+     * Gets the logs of the chunk
+     *
+     * @return array
+     */
+    public function get_logs(): array
+    {
+        return $this->logs;
+    }
+
+    /**
      * Get the duration in seconds
      *
-     * @return float
+     * @return float Returns the duration in seconds with microsecond precision
      */
-    public function get_duration(): float {
-        if ( ! $this->is_data_fetched ) {
+    public function get_duration(): float
+    {
+        if (!$this->is_data_fetched) {
             $this->fetch_data();
         }
 
-        // If duration is not yet calculated, calculate it
-        if ( empty( $this->duration ) && ! empty( $this->end ) && ! empty( $this->start ) ) {
-            return $this->calculate_duration();
-        }
-
-        return (float) $this->duration;
-    }
-
-    /**
-     * Get formatted duration in human-readable format
-     *
-     * @return string
-     */
-    public function get_formatted_duration(): string {
-        $duration = $this->get_duration();
-
-        if ( 0.0 === $duration ) {
-            return '0s';
-        }
-
-        // Format with microseconds precision
-        return sprintf( '%.6fs', $duration );
-    }
-
-    /**
-     * Calculate duration between start and end time
-     *
-     * @return float Duration in seconds with microseconds precision
-     */
-    private function calculate_duration(): float {
-        if ( empty( $this->end ) || empty( $this->start ) ) {
+        if (null === $this->end || null === $this->start) {
             return 0.0;
         }
 
-        $end_time   = (float) $this->end;
-        $start_time = (float) $this->start;
+        /** @var DateTimeImmutable $end */
+        $end = $this->end;
 
-        $duration = $end_time - $start_time;
+        /** @var DateTimeImmutable $start */
+        $start = $this->start;
 
-        // Store the calculated duration
-        $this->duration = (string) $duration;
+        // Get timestamps with microseconds
+        $end_time = (float) sprintf('%d.%d', $end->getTimestamp(), $end->format('u') / 1000);
+        $start_time = (float) sprintf('%d.%d', $start->getTimestamp(), $start->format('u') / 1000);
 
-        return $duration;
+        // Simple subtraction gives us the duration in seconds
+        return $end_time - $start_time;
     }
 
     /**
-     * Update multiple chunk properties at once
+     * Sets the action ID
      *
-     * @param array{
-     *     name?: string,
-     *     group?: string,
-     *     status?: string,
-     *     start?: string,
-     *     end?: string,
-     *     action_id?: int,
-     *     data?: array<mixed>
-     * } $arguments The update arguments
+     * @param int $action_id The action ID
      * @return void
      */
-    public function update( array $arguments ): void {
-        $update_args = [];
-
-        // Handle data separately due to serialization
-        if ( isset( $arguments['data'] ) ) {
-            $this->data = $arguments['data'];
-            $update_args['data'] = serialize( $arguments['data'] );
-            unset( $arguments['data'] );
-        }
-
-        // Handle other fields
-        $allowed_fields = array(
-            'name'      => '%s',
-            'group'     => '%s',
-            'status'    => '%s',
-            'start'     => '%s',
-            'end'       => '%s',
-            'action_id' => '%d'
-        );
-        $allowed_fields = apply_filters( 'asp/chunks/allowed_fields', $allowed_fields );
-        $allowed_fields = array_keys( $allowed_fields );
-        foreach ( $allowed_fields as $field ) {
-            if ( isset( $arguments[ $field ] ) ) {
-                $this->{$field} = $arguments[ $field ];
-                $update_args[ $field ] = $arguments[ $field ];
-            }
-        }
-
-        if ( ! empty( $update_args ) ) {
-            $this->update_chunk( $this->chunk_id, $update_args );
-        }
+    public function set_action_id(int $action_id): void {
+        $this->action_id = $action_id;
     }
 
     /**
-     * Updates the chunk status and timestamps in the database.
+     * Sets the name
      *
-     * @param int $chunk_id The chunk ID to update
-     * @param array{
-     *     name?: string,
-     *     group?: string,
-     *     status?: string,
-     *     start?: string,
-     *     end?: string,
-     *     action_id?: int,
-     *     data?: string
-     * } $arguments The update arguments
+     * @param string $name The name
      * @return void
      */
-    protected function update_chunk( int $chunk_id, array $arguments = [] ): void {
-        if ( ! $chunk_id ) {
-            return;
+    public function set_name(string $name): void {
+        $this->name = $name;
+    }
+
+    /**
+     * Sets the group
+     *
+     * @param string $group The group
+     * @return void
+     */
+    public function set_group(string $group): void {
+        $this->group = $group;
+    }
+
+    /**
+     * Sets the status
+     *
+     * @param ProcessStatus $status The status
+     * @return void
+     */
+    public function set_status(ProcessStatus $status): void {
+        $this->status = $status;
+    }
+
+    /**
+     * Sets the data
+     *
+     * @param array<mixed> $data The data
+     * @return void
+     */
+    public function set_data(array $data): void {
+        $this->data = $data;
+    }
+
+    /**
+     * Sets the start time
+     *
+     * @param float $microtime The microtime
+     * @return void
+     */
+    public function set_start(float $microtime): void {
+        $this->start = Helper::convert_microtime_to_datetime($microtime);
+    }
+
+    /**
+     * Sets the end time
+     *
+     * @param float $microtime The microtime
+     * @return void
+     */
+    public function set_end(float $microtime): void {
+        $this->end = Helper::convert_microtime_to_datetime($microtime);
+    }
+
+    /**
+     * Saves the chunk data to the database
+     *
+     * @throws Exception If database operation fails
+     * @return int the chunk id
+     */
+    public function save(): int {
+        $data = [];
+
+        // Only add fields that have been explicitly set
+        if (null !== $this->name) {
+            $data['name'] = $this->name;
         }
-    
-        $table_name = $this->get_chunks_table_name();
-        $data = array();
-        $formats = array();
-    
-        $allowed_fields = array(
-            'name'      => '%s',
-            'group'     => '%s',
-            'status'    => '%s',
-            'start'     => '%s',
-            'end'       => '%s',
-            'action_id' => '%d',
-            'data'      => '%s'
-        );
-        $allowed_fields = apply_filters( 'asp/chunks/allowed_fields', $allowed_fields );
-    
-        foreach ( $allowed_fields as $field => $format ) {
-            if ( isset( $arguments[ $field ] ) ) {
-                $data[ $field ] = $arguments[ $field ];
-                $formats[] = $format;
+
+        if (null !== $this->group) {
+            $data['group'] = $this->group;
+        }
+
+        if (null !== $this->status) {
+            $data['status'] = $this->status->value;
+        }
+
+        if (null !== $this->data) {
+            $data['data'] = serialize($this->data);
+        }
+
+        if (null !== $this->action_id) {
+            $data['action_id'] = $this->action_id;
+        }
+
+        // Format start time if exists
+        if (null !== $this->start) {
+            $data['start'] = (float) sprintf(
+                '%d.%d',
+                $this->start->getTimestamp(),
+                $this->start->format('u') / 1000
+            );
+        }
+
+        // Format end time if exists
+        if (null !== $this->end) {
+            $data['end'] = (float) sprintf(
+                '%d.%d',
+                $this->end->getTimestamp(),
+                $this->end->format('u') / 1000
+            );
+        }
+
+        if (empty($data)) {
+            throw new Exception( __( 'Data is empty', 'as-processor' ) ); // Nothing to save
+        }
+
+        $formats = [];
+        foreach ($data as $key => $value) {
+            $formats[] = in_array($key, ['action_id'], true) ? '%d' : '%s';
+        }
+
+        // Insert or update based on chunk_id existence
+        if (empty($this->chunk_id)) {
+            $result = $this->db()->insert(
+                $this->get_chunks_table_name(),
+                $data,
+                $formats
+            );
+
+            if (false === $result) {
+                throw new Exception(__( 'Could not insert chunk data!', 'as-processor' ) );
+            }
+
+            $this->chunk_id = (int) $this->db()->insert_id;
+        } else {
+            $result = $this->db()->update(
+                $this->get_chunks_table_name(),
+                $data,
+                ['id' => $this->chunk_id],
+                $formats,
+                ['%d']
+            );
+
+            if (false === $result) {
+                throw new Exception(__( 'Failed to update chunk data', 'as-processor' ) );
             }
         }
-    
-        if ( empty( $data ) ) {
-            return;
-        }
-    
-        $this->db()->update(
-            $table_name,
-            $data,
-            array( 'id' => $chunk_id ),
-            $formats,
-            array( '%d' )
-        );
 
-        // since the chunk is updated, we need to ensure that the next
-        // query loads the correct data.
+        // Reset data fetched flag to ensure fresh data on next fetch
         $this->is_data_fetched = false;
+        return $this->chunk_id;
     }
 }

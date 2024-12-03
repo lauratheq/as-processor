@@ -12,6 +12,7 @@ namespace juvo\AS_Processor;
 use Exception;
 use Generator;
 use Iterator;
+use juvo\AS_Processor\Entities\ProcessStatus;
 use juvo\AS_Processor\Entities\Chunk;
 
 /**
@@ -42,12 +43,11 @@ trait Chunker
 
         // create the new chunk
         $chunk = new Chunk();
-        $chunk->update([
-            'name'   => $this->get_sync_name(),
-            'group'  => $this->get_sync_group_name(),
-            'status' => 'scheduled',
-            'data'   => $chunkData
-        ]);
+        $chunk->set_name( $this->get_sync_name() );
+        $chunk->set_group( $this->get_sync_group_name() );
+        $chunk->set_status( ProcessStatus::SCHEDULED );
+        $chunk->set_data( $chunkData );
+        $chunk->save();
 
         as_enqueue_async_action(
             $this->get_sync_name() . '/process_chunk',
@@ -70,9 +70,8 @@ trait Chunker
     {
         // set the new status of the chunk
         $chunk = new Chunk( $chunk_id );
-        $chunk->update( array(
-            'status' => 'running'
-        ) );
+        $chunk->set_status( ProcessStatus::RUNNING );
+        $chunk->save();
 
         // fetch the data
         $data = $chunk->get_data();
@@ -126,17 +125,18 @@ trait Chunker
         /**
          * Filters the number of days to keep chunk data.
          *
-         * @param string $interval The interval string (e.g., '-14 days').
+         * @param int $interval The interval (e.g., 14).
          */
-        $days_interval = apply_filters( 'asp/chunks/cleanup/days', '-14 days' );
-        $cleanup_timestamp = (float) strtotime( $days_interval );
+        $days_interval = apply_filters( 'asp/chunks/cleanup/days', 14 );
+        $days_interval = (int) $days_interval * DAY_IN_SECONDS;
+        $cleanup_timestamp = (int) time() - $days_interval;
 
         /**
          * Filters the status of chunks to clean up.
          *
          * @param string $status The status to filter by (default: 'all').
          */
-        $status = apply_filters('asp/chunks/cleanup/status', 'all');
+        $status = apply_filters('asp/chunks/cleanup/status', ProcessStatus::ALL);
 
         $query = '';
         if ( 'all' === $status ) {

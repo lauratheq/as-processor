@@ -3,6 +3,8 @@
 namespace juvo\AS_Processor;
 
 use DateTimeImmutable;
+use juvo\AS_Processor\Entities\Chunk;
+use juvo\AS_Processor\Entities\ProcessStatus;
 
 class Stats
 {
@@ -47,7 +49,7 @@ class Stats
         $duration = round((float)$result->sync_end - (float)$result->sync_start, 4);
 
         if ($human_time) {
-            return $this->human_time_diff_microseconds(0, $duration);
+            return Helper::human_time_diff_microseconds(0, $duration);
         }
 
         return $duration;
@@ -71,19 +73,21 @@ class Stats
     /**
      * Gets actions filtered by status.
      *
-     * @param array|string $status Status to filter by.
+     * @param ProcessStatus|array<ProcessStatus> $status Status to filter by.
      * @param bool $include_durations Whether to include durations.
      * @param bool $human_time Whether to return human-readable time.
      * @return array
      */
-    public function get_actions_by_status(array|string $status, bool $include_durations = false, bool $human_time = false): array {
+    public function get_actions_by_status(ProcessStatus|array $status, bool $include_durations = false, bool $human_time = false): array
+    {
         $statuses = is_array($status) ? $status : [$status];
-        $placeholders = array_fill(0, count($statuses), '%s');
+        $status_values = array_map(static fn(ProcessStatus $status): string => $status->value, $statuses);
 
+        $placeholders = array_fill(0, count($status_values), '%s');
         $query = $this->db()->prepare(
             "SELECT * FROM {$this->get_chunks_table_name()} 
             WHERE `group` = %s AND status IN (" . implode(',', $placeholders) . ")",
-            array_merge([$this->group_name], $statuses)
+            array_merge([$this->group_name], $status_values)
         );
 
         $results = $this->db()->get_results($query, ARRAY_A);
@@ -92,9 +96,9 @@ class Stats
             foreach ($results as &$action) {
                 if (!empty($action['start']) && !empty($action['end'])) {
                     $duration = round((float)$action['end'] - (float)$action['start'], 4);
-                    $action['duration'] = $human_time ?
-                        $this->human_time_diff_microseconds(0, $duration) :
-                        $duration;
+                    $action['duration'] = $human_time
+                        ? Helper::human_time_diff_microseconds(0, $duration)
+                        : $duration;
                 }
             }
         }
@@ -119,7 +123,7 @@ class Stats
         $average = (float)$this->db()->get_var($query);
 
         return $human_time ?
-            $this->human_time_diff_microseconds(0, $average) :
+            Helper::human_time_diff_microseconds(0, $average) :
             $average;
     }
 
@@ -150,7 +154,7 @@ class Stats
         return [
             'id' => $result['id'],
             'duration' => $human_time ?
-                $this->human_time_diff_microseconds(0, $duration) :
+                Helper::human_time_diff_microseconds(0, $duration) :
                 $duration
         ];
     }
@@ -182,7 +186,7 @@ class Stats
         return [
             'id' => $result['id'],
             'duration' => $human_time ?
-                $this->human_time_diff_microseconds(0, $duration) :
+                Helper::human_time_diff_microseconds(0, $duration) :
                 $duration
         ];
     }
@@ -254,14 +258,15 @@ class Stats
      *     id: int,
      *     name: string,
      *     group: string,
-     *     status: string
+     *     status: ProcessStatus
      * }>
      */
-    public function get_actions(): array {
+    public function get_actions(): array
+    {
         $query = $this->db()->prepare(
-            "SELECT id, name, `group`, status 
-        FROM {$this->get_chunks_table_name()} 
-        WHERE `group` = %s",
+            "SELECT `id`, `name`, `group`, `status` 
+            FROM {$this->get_chunks_table_name()} 
+            WHERE `group` = %s",
             $this->group_name
         );
 
@@ -277,7 +282,7 @@ class Stats
                     'id' => (int)$row['id'],
                     'name' => $row['name'],
                     'group' => $row['group'],
-                    'status' => $row['status']
+                    'status' => ProcessStatus::from($row['status'])
                 ];
             },
             $results
@@ -325,15 +330,20 @@ class Stats
         $email_text .= sprintf(__("Fastest Action Duration: %s", 'as-processor'), $this->get_fastest_action(true)['duration'] ?? __('N/A', 'as-processor')) . "\n";
 
         // Failed actions
-        $failed_actions = $this->get_actions_by_status('failed');
+        $failed_actions = $this->get_actions_by_status(ProcessStatus::FAILED);
         if (!empty($failed_actions)) {
             $email_text .= "\n-- " . __("Failed Actions Detail:", 'as-processor') . " --\n";
             foreach ($failed_actions as $action) {
-                $email_text .= sprintf(__("Action ID: %s", 'as-processor'), $action['id']) . "\n";
-                $email_text .= sprintf(__("Status: %s", 'as-processor'), $action['status']) . "\n";
-                $email_text .= sprintf(__("Start: %s", 'as-processor'), $action['start']->format('Y-m-d H:i:s')) . "\n";
+                $chunk = new Chunk( $action['id'] );
+                $email_text .= sprintf(__("Action ID: %s", 'as-processor'), $chunk->get_action_id()) . "\n";
+                $email_text .= sprintf(__("Status: %s", 'as-processor'), $chunk->get_status()) . "\n";
+                $email_text .= sprintf(__("Start: %s", 'as-processor'), $chunk->get_start()->format('Y-m-d H:i:s')) . "\n";
+                $email_text .= sprintf(__("End: %s", 'as-processor'), $chunk->get_end()->format('Y-m-d H:i:s')) . "\n";
                 if ($action['status'] === 'failed') {
-                    $email_text .= sprintf(__("Error Message: %s", 'as-processor'), $action['error_message']) . "\n";
+                    $email_text .= __("Log Messages:", 'as-processor') . "\n";
+                    foreach ( $chunk->get_logs() as $message ) {
+                        $email_text .= sprintf(__("%s", 'as-processor'), $message) . "\n";
+                    }
                 }
                 $email_text .= "\n";
             }
@@ -348,104 +358,5 @@ class Stats
         }
 
         return $email_text;
-    }
-
-    /**
-     * Calculates the human-readable time difference in microseconds between two given timestamps.
-     *
-     * @param float $from The starting timestamp.
-     * @param float $to The ending timestamp. If not provided, the current timestamp will be used.
-     * @return string The human-readable time difference in microseconds.
-     */
-    private function human_time_diff_microseconds( float $from, float $to = 0 ): string
-    {
-        if ( empty( $to ) ) {
-            $to = microtime(true);
-        }
-        $diff = abs( $to - $from );
-
-        $time_strings = array();
-
-        if ( $diff < 1 ) { // Less than 1 second
-            $total_microsecs = (int)($diff * 1000000);
-            $millisecs = (int)($total_microsecs / 1000);
-            $microsecs = $total_microsecs % 1000;
-
-            if ( $millisecs > 0 ) {
-                /* translators: Time difference in milliseconds */
-                $time_strings[] = sprintf( _n( '%s millisecond', '%s milliseconds', $millisecs, 'as-processor' ), $millisecs );
-            }
-            if ( $microsecs > 0 ) {
-                /* translators: Time difference in microseconds */
-                $time_strings[] = sprintf( _n( '%s microsecond', '%s microseconds', $microsecs, 'as-processor' ), $microsecs );
-            }
-        } else {
-            $remaining_seconds = $diff;
-
-            $years = (int)($remaining_seconds / YEAR_IN_SECONDS);
-            if ( $years > 0 ) {
-                /* translators: Time difference in years */
-                $time_strings[] = sprintf( _n( '%s year', '%s years', $years ), $years );
-                $remaining_seconds -= $years * YEAR_IN_SECONDS;
-            }
-
-            $months = (int)($remaining_seconds / MONTH_IN_SECONDS);
-            if ( $months > 0 ) {
-                /* translators: Time difference in months */
-                $time_strings[] = sprintf( _n( '%s month', '%s months', $months ), $months );
-                $remaining_seconds -= $months * MONTH_IN_SECONDS;
-            }
-
-            $weeks = (int)($remaining_seconds / WEEK_IN_SECONDS);
-            if ( $weeks > 0 ) {
-                /* translators: Time difference in weeks */
-                $time_strings[] = sprintf( _n( '%s week', '%s weeks', $weeks ), $weeks );
-                $remaining_seconds -= $weeks * WEEK_IN_SECONDS;
-            }
-
-            $days = (int)($remaining_seconds / DAY_IN_SECONDS);
-            if ( $days > 0 ) {
-                /* translators: Time difference in days */
-                $time_strings[] = sprintf( _n( '%s day', '%s days', $days ), $days );
-                $remaining_seconds -= $days * DAY_IN_SECONDS;
-            }
-
-            $hours = (int)($remaining_seconds / HOUR_IN_SECONDS);
-            if ( $hours > 0 ) {
-                /* translators: Time difference in hours */
-                $time_strings[] = sprintf( _n( '%s hour', '%s hours', $hours ), $hours );
-                $remaining_seconds -= $hours * HOUR_IN_SECONDS;
-            }
-
-            $minutes = (int)($remaining_seconds / MINUTE_IN_SECONDS);
-            if ( $minutes > 0 ) {
-                /* translators: Time difference in minutes */
-                $time_strings[] = sprintf( _n( '%s minute', '%s minutes', $minutes ), $minutes );
-                $remaining_seconds -= $minutes * MINUTE_IN_SECONDS;
-            }
-
-            $seconds = (int)$remaining_seconds;
-            if ( $seconds > 0 ) {
-                /* translators: Time difference in seconds */
-                $time_strings[] = sprintf( _n( '%s second', '%s seconds', $seconds ), $seconds );
-                $remaining_seconds -= $seconds;
-            }
-
-            $milliseconds = (int)($remaining_seconds * 1000);
-            if ( $milliseconds > 0 ) {
-                /* translators: Time difference in milliseconds */
-                $time_strings[] = sprintf( _n( '%s millisecond', '%s milliseconds', $milliseconds, 'as-processor' ), $milliseconds );
-            }
-
-            $microseconds = (int)($remaining_seconds * 1000000) - ($milliseconds * 1000);
-            if ( $microseconds > 0 ) {
-                /* translators: Time difference in microseconds */
-                $time_strings[] = sprintf( _n( '%s microsecond', '%s microseconds', $microseconds, 'as-processor' ), $microseconds );
-            }
-        }
-
-        // Join the time strings
-        $separator = _x( ', ', 'Human time diff separator', 'as-processor' );
-        return implode( $separator, $time_strings );
     }
 }
