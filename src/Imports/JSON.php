@@ -25,13 +25,6 @@ abstract class JSON extends Import
     public int $chunk_size = 10;
 
     /**
-     * The path to the file
-     *
-     * @var string
-     */
-    public string $filepath;
-
-    /**
      * The maximum depth allowed for parsing
      *
      * @var int
@@ -50,7 +43,7 @@ abstract class JSON extends Import
      *
      * @var bool
      */
-    public bool $associative = true;
+    public bool $associative = TRUE;
 
     /**
      * Retrieves the source path as a string.
@@ -66,9 +59,9 @@ abstract class JSON extends Import
      */
     public function split_data_into_chunks(): void
     {
-        $this->filepath = $this->get_source_path();
+        $filepath = $this->get_source_path();
 
-        if (! is_file($this->filepath)) {
+        if (! is_file($filepath)) {
             throw new Exception(
                 sprintf(
                     '%s - %s',
@@ -78,7 +71,7 @@ abstract class JSON extends Import
             );
         }
 
-        $data = $this->fetch_data_from_source_file();
+        $data = $this->fetch_data_from_source_file( $filepath );
 
         if (empty($data)) {
             return;
@@ -94,14 +87,15 @@ abstract class JSON extends Import
     /**
      * Processes the fetching of data from a specified file path.
      *
+     * @param string $filepath the path to the json file
      * @return array<mixed> The decoded JSON data or an empty array on error
      * @throws Exception When JSON decoding fails
      */
-    public function fetch_data_from_source_file(): array
+    public function fetch_data_from_source_file( string $filepath ): array
     {
         require_once ABSPATH . 'wp-admin/includes/file.php';
         $wp_filesystem = new WP_Filesystem_Direct(null);
-        $data = $wp_filesystem->get_contents($this->filepath);
+        $data = $wp_filesystem->get_contents($filepath);
 
         if (false === $data) {
             throw new Exception(
